@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#C24A33">
+<meta name="theme-color" content="#5A9E8F">
 <title>考研错题复习</title>
 <style>
 :root {
-  --pri: #C24A33; --pri-light: #FDF0EC; --pri-dark: #A33D2A;
+  --pri: #5A9E8F; --pri-light: #EDF6F4; --pri-dark: #4A8A7C;
   --green: #4A8C5C; --green-bg: #EDF5EF;
   --blue: #3A7CA5; --blue-bg: #ECF3F8;
   --amber: #C48A2A; --amber-bg: #FDF5EA;
   --purple: #7B5EA7; --purple-bg: #F3EEF9;
-  --red: #B84A4A; --red-bg: #FBEFEF;
+  --red: #C47A7A; --red-bg: #F9F0F0;
   --gray: #7F8C8D; --gray-bg: #F0F2F2;
   --bg: #FAF7F2; --card: #fff; --text: #2D3436; --text2: #888; --text3: #BBB;
   --radius: 14px; --shadow: 0 2px 10px rgba(0,0,0,0.06);
@@ -30,7 +30,7 @@ body {
 .header {
   background: linear-gradient(135deg, var(--pri) 0%, var(--pri-dark) 100%);
   color: #fff; padding: 22px 20px 16px; border-radius: 0 0 22px 22px;
-  box-shadow: 0 4px 20px rgba(194,74,51,0.25);
+  box-shadow: 0 4px 20px rgba(90,158,143,0.25);
 }
 .header h1 { font-size: 21px; font-weight: 700; letter-spacing: 0.5px; }
 .header .sub { font-size: 12px; opacity: 0.8; margin-top: 3px; }
@@ -124,7 +124,7 @@ body {
 .fab {
   position: fixed; bottom: 24px; right: 24px; width: 54px; height: 54px;
   border-radius: 50%; background: linear-gradient(135deg, var(--pri), var(--pri-dark));
-  color: #fff; border: none; font-size: 28px; box-shadow: 0 4px 16px rgba(194,74,51,0.35);
+  color: #fff; border: none; font-size: 28px; box-shadow: 0 4px 16px rgba(90,158,143,0.35);
   cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 50;
 }
 .fab:active { transform: scale(0.92); }
@@ -223,12 +223,12 @@ const INTERVALS = [3, 7, 15];
 const INTERVAL_LABELS = ['3天后', '7天后', '15天后'];
 
 const SUBJECTS = [
-  { name:'高数', color:'#C24A33', bg:'#FDF0EC' },
+  { name:'高数', color:'#D4836A', bg:'#FBF0EB' },
   { name:'线代', color:'#3A7CA5', bg:'#ECF3F8' },
   { name:'概率论', color:'#4A8C5C', bg:'#EDF5EF' },
   { name:'811信号', color:'#C48A2A', bg:'#FDF5EA' },
   { name:'英语', color:'#7B5EA7', bg:'#F3EEF9' },
-  { name:'政治', color:'#B84A4A', bg:'#FBEFEF' },
+  { name:'政治', color:'#C47A7A', bg:'#F9F0F0' },
   { name:'其他', color:'#7F8C8D', bg:'#F0F2F2' },
 ];
 
