@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#C24A33">
+<title>考研错题复习</title>
+<style>
+:root {
+  --pri: #C24A33; --pri-light: #FDF0EC; --pri-dark: #A33D2A;
+  --green: #4A8C5C; --green-bg: #EDF5EF;
+  --blue: #3A7CA5; --blue-bg: #ECF3F8;
+  --amber: #C48A2A; --amber-bg: #FDF5EA;
+  --purple: #7B5EA7; --purple-bg: #F3EEF9;
+  --red: #B84A4A; --red-bg: #FBEFEF;
+  --gray: #7F8C8D; --gray-bg: #F0F2F2;
+  --bg: #FAF7F2; --card: #fff; --text: #2D3436; --text2: #888; --text3: #BBB;
+  --radius: 14px; --shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  font-family: -apple-system, "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  max-width: 500px; margin: 0 auto; padding-bottom: 90px;
+  -webkit-font-smoothing: antialiased;
+}
+/* ── Header ── */
+.header {
+  background: linear-gradient(135deg, var(--pri) 0%, var(--pri-dark) 100%);
+  color: #fff; padding: 22px 20px 16px; border-radius: 0 0 22px 22px;
+  box-shadow: 0 4px 20px rgba(194,74,51,0.25);
+}
+.header h1 { font-size: 21px; font-weight: 700; letter-spacing: 0.5px; }
+.header .sub { font-size: 12px; opacity: 0.8; margin-top: 3px; }
+.stats {
+  display: flex; gap: 8px; margin-top: 14px;
+}
+.stat-box {
+  flex: 1; background: rgba(255,255,255,0.18); border-radius: 12px;
+  padding: 10px 0; text-align: center; backdrop-filter: blur(6px);
+}
+.stat-num { font-size: 22px; font-weight: 700; }
+.stat-label { font-size: 10px; opacity: 0.85; margin-top: 2px; }
+/* ── Tabs ── */
+.tab-bar {
+  display: flex; margin: 14px 16px 0; background: var(--card);
+  border-radius: var(--radius); padding: 3px; box-shadow: var(--shadow);
+}
+.tab-btn {
+  flex: 1; padding: 10px 0; border-radius: 11px; border: none;
+  background: transparent; color: var(--text2); font-size: 13px;
+  font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.tab-btn.active { background: var(--pri); color: #fff; }
+/* ── Content ── */
+.content { padding: 10px 16px; }
+.section-label {
+  font-size: 12px; font-weight: 600; color: var(--text3);
+  margin: 14px 0 8px 4px; display: flex; align-items: center; gap: 6px;
+}
+/* ── Cards ── */
+.card {
+  background: var(--card); border-radius: var(--radius); padding: 14px 16px;
+  margin-bottom: 10px; box-shadow: var(--shadow); transition: transform 0.12s;
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.card-top { display: flex; align-items: center; gap: 8px; }
+.tag {
+  display: inline-block; padding: 2px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; flex-shrink: 0;
+}
+.problem-text { font-size: 14px; font-weight: 600; flex: 1; line-height: 1.4; }
+.date-text { font-size: 11px; color: var(--text3); white-space: nowrap; }
+.error-type {
+  display: inline-block; font-size: 11px; padding: 2px 8px;
+  border-radius: 6px; margin-top: 6px; font-weight: 500;
+}
+.note-text { font-size: 12px; color: var(--text2); margin-top: 5px; line-height: 1.4; }
+/* review dots */
+.review-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.review-dot {
+  display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3);
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.dot-done { background: var(--green); }
+.dot-due { background: var(--pri); }
+.dot-pending { background: #DDD; }
+/* review badge */
+.review-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+}
+.badge-urgent { background: var(--pri-light); color: var(--pri); }
+.badge-normal { background: var(--blue-bg); color: var(--blue); }
+/* buttons */
+.btn {
+  padding: 8px 16px; border-radius: 10px; border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.7; }
+.btn-done { background: var(--green); color: #fff; }
+.btn-fail { background: var(--red-bg); color: var(--red); }
+.btn-action { background: #F5F3F0; color: var(--text2); font-size: 12px; padding: 6px 12px; }
+.btn-danger { background: var(--pri-light); color: var(--pri); font-size: 12px; padding: 6px 12px; }
+.btn-master { background: var(--green-bg); color: var(--green); font-size: 12px; padding: 6px 12px; }
+.action-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.card-bottom {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; gap: 8px;
+}
+/* ── Expanded area ── */
+.expanded { margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0EDEA; }
+/* ── Empty ── */
+.empty { text-align: center; padding: 44px 20px; color: var(--text3); }
+.empty-icon { font-size: 38px; margin-bottom: 10px; }
+.empty-title { font-size: 15px; font-weight: 600; color: var(--text2); }
+.empty-sub { font-size: 12px; margin-top: 5px; }
+/* ── FAB ── */
+.fab {
+  position: fixed; bottom: 24px; right: 24px; width: 54px; height: 54px;
+  border-radius: 50%; background: linear-gradient(135deg, var(--pri), var(--pri-dark));
+  color: #fff; border: none; font-size: 28px; box-shadow: 0 4px 16px rgba(194,74,51,0.35);
+  cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.fab:active { transform: scale(0.92); }
+/* ── Modal ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100;
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+.modal {
+  width: 100%; max-width: 500px; background: var(--card);
+  border-radius: 22px 22px 0 0; padding: 22px 20px 34px;
+  max-height: 88vh; overflow-y: auto; animation: slideModal 0.25s ease;
+}
+@keyframes slideModal { from { transform:translateY(40px); } to { transform:translateY(0); } }
+.modal-head {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;
+}
+.modal-title { font-size: 17px; font-weight: 700; }
+.modal-close {
+  background: none; border: none; font-size: 20px; color: var(--text3);
+  cursor: pointer; padding: 4px;
+}
+.form-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 8px; }
+.form-group { margin-bottom: 16px; }
+.form-input {
+  width: 100%; padding: 11px 14px; border-radius: 12px;
+  border: 2px solid #EEE; font-size: 15px; outline: none;
+  font-family: inherit; transition: border-color 0.2s; background: #FAFAFA;
+}
+.form-input:focus { border-color: var(--pri); background: #fff; }
+.subject-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.subject-btn {
+  padding: 6px 13px; border-radius: 20px; border: 2px solid #EEE;
+  background: #FAFAFA; color: var(--text3); font-size: 12px;
+  font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.subject-btn.active { border-color: currentColor; }
+.error-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.error-btn {
+  padding: 6px 12px; border-radius: 10px; border: 2px solid #EEE;
+  background: #FAFAFA; color: var(--text2); font-size: 12px;
+  font-weight: 500; cursor: pointer; transition: all 0.15s;
+}
+.error-btn.active { border-color: var(--pri); background: var(--pri-light); color: var(--pri); }
+.submit-btn {
+  width: 100%; padding: 14px; border-radius: var(--radius); border: none;
+  background: linear-gradient(135deg, var(--pri), var(--pri-dark));
+  color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 6px;
+}
+.submit-btn:active { opacity: 0.85; }
+.preview-text { font-size: 11px; color: var(--text3); margin-top: 6px; }
+/* ── Toast ── */
+.toast {
+  position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: #fff; padding: 10px 22px; border-radius: 12px;
+  font-size: 13px; font-weight: 600; z-index: 300; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  animation: toastAnim 1.8s ease forwards;
+}
+@keyframes toastAnim {
+  0% { opacity:0; transform:translateX(-50%) translateY(-8px); }
+  12% { opacity:1; transform:translateX(-50%) translateY(0); }
+  78% { opacity:1; transform:translateX(-50%) translateY(0); }
+  100% { opacity:0; transform:translateX(-50%) translateY(-8px); }
+}
+/* ── Settings/Data panel ── */
+.data-panel { padding: 16px; }
+.data-btn {
+  width: 100%; padding: 14px; border-radius: var(--radius); border: 2px solid #EEE;
+  background: var(--card); font-size: 14px; font-weight: 600; cursor: pointer;
+  margin-bottom: 10px; text-align: center; color: var(--text); transition: all 0.15s;
+}
+.data-btn:active { background: #F5F3F0; }
+.data-btn.danger { border-color: var(--pri-light); color: var(--pri); }
+.data-textarea {
+  width: 100%; height: 120px; border-radius: 12px; border: 2px solid #EEE;
+  padding: 12px; font-size: 12px; font-family: monospace; resize: vertical;
+  outline: none; margin-top: 8px;
+}
+.data-textarea:focus { border-color: var(--pri); }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+/* ═══════════════════════════════════════
+   考研错题复习 - Spaced Repetition Tracker
+   间隔：3天 → 7天 → 15天
+   ═══════════════════════════════════════ */
+
+const STORAGE_KEY = 'kaoyan_review_v3';
+const INTERVALS = [3, 7, 15];
+const INTERVAL_LABELS = ['3天后', '7天后', '15天后'];
+
+const SUBJECTS = [
+  { name:'高数', color:'#C24A33', bg:'#FDF0EC' },
+  { name:'线代', color:'#3A7CA5', bg:'#ECF3F8' },
+  { name:'概率论', color:'#4A8C5C', bg:'#EDF5EF' },
+  { name:'811信号', color:'#C48A2A', bg:'#FDF5EA' },
+  { name:'英语', color:'#7B5EA7', bg:'#F3EEF9' },
+  { name:'政治', color:'#B84A4A', bg:'#FBEFEF' },
+  { name:'其他', color:'#7F8C8D', bg:'#F0F2F2' },
+];
+
+const ERROR_TYPES = [
+  { id:'concept', label:'概念不清', emoji:'🧠' },
+  { id:'method', label:'方法不会', emoji:'🔧' },
+  { id:'calc', label:'计算失误', emoji:'🔢' },
+  { id:'careless', label:'粗心大意', emoji:'😵' },
+];
+
+/* ── Utilities ── */
+const pad = n => String(n).padStart(2,'0');
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const toDateStr = d => { const x=new Date(d); return `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`; };
+const addDays = (s,n) => { const d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return toDateStr(d); };
+const isDue = s => s <= todayStr();
+const daysFrom = s => { const a=new Date(todayStr()+'T00:00:00'),b=new Date(s+'T00:00:00'); return Math.round((b-a)/864e5); };
+const friendlyDate = s => { const d=new Date(s+'T00:00:00'); return `${d.getMonth()+1}月${d.getDate()}日`; };
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const getSub = name => SUBJECTS.find(s=>s.name===name) || SUBJECTS[6];
+const getErr = id => ERROR_TYPES.find(e=>e.id===id);
+
+const buildReviews = dateAdded => INTERVALS.map((days,i) => ({
+  id: uid(), round: i+1, days, label: INTERVAL_LABELS[i],
+  scheduledDate: addDays(dateAdded, days), done: false, correct: false,
+}));
+
+/* ── Storage ── */
+function loadData() {
+  try { const s=localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : []; }
+  catch { return []; }
+}
+function saveData(data) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) { console.error(e); }
+}
+
+/* ── App State ── */
+let state = {
+  problems: loadData(),
+  tab: 'today', // today | all | mastered | data
+  showForm: false,
+  editId: null,
+  expandedId: null,
+  toast: '',
+  // form
+  fSubject: '高数',
+  fProblem: '',
+  fNotes: '',
+  fErrorType: '',
+  fDate: todayStr(),
+};
+
+function setState(patch) {
+  Object.assign(state, patch);
+  render();
+}
+
+function flash(msg) {
+  state.toast = msg;
+  render();
+  setTimeout(() => { state.toast = ''; render(); }, 1800);
+}
+
+/* ── Actions ── */
+function openAdd() {
+  setState({ showForm:true, editId:null, fSubject:'高数', fProblem:'', fNotes:'', fErrorType:'', fDate:todayStr() });
+}
+
+function openEdit(p) {
+  setState({ showForm:true, editId:p.id, fSubject:p.subject, fProblem:p.problemId, fNotes:p.notes||'', fErrorType:p.errorType||'', fDate:p.dateAdded });
+}
+
+function submitForm() {
+  if (!state.fProblem.trim()) return;
+  const data = [...state.problems];
+  if (state.editId) {
+    const idx = data.findIndex(p=>p.id===state.editId);
+    if (idx>=0) {
+      const old = data[idx];
+      const dateChanged = old.dateAdded !== state.fDate;
+      data[idx] = { ...old, subject:state.fSubject, problemId:state.fProblem.trim(),
+        notes:state.fNotes.trim(), errorType:state.fErrorType, dateAdded:state.fDate,
+        reviews: dateChanged ? buildReviews(state.fDate) : old.reviews };
+    }
+    flash('已更新 ✓');
+  } else {
+    data.unshift({
+      id:uid(), subject:state.fSubject, problemId:state.fProblem.trim(),
+      notes:state.fNotes.trim(), errorType:state.fErrorType, dateAdded:state.fDate,
+      reviews:buildReviews(state.fDate), mastered:false, createdAt:new Date().toISOString(),
+    });
+    flash('已添加 ✓');
+  }
+  saveData(data);
+  setState({ problems:data, showForm:false });
+}
+
+function completeReview(pid, rid, correct) {
+  const data = state.problems.map(p => {
+    if (p.id !== pid) return p;
+    return { ...p, reviews: p.reviews.map(r => {
+      if (r.id !== rid) return r;
+      if (correct) return { ...r, done:true, correct:true, completedDate:todayStr() };
+      // Wrong: reset this round to today+3
+      return { ...r, scheduledDate: addDays(todayStr(), 3) };
+    })};
+  });
+  saveData(data);
+  setState({ problems:data });
+  flash(correct ? '✓ 做对了，继续保持！' : '重新安排3天后复习');
+}
+
+function toggleMastered(id) {
+  const data = state.problems.map(p => p.id===id ? { ...p, mastered:!p.mastered, masteredDate:!p.mastered?todayStr():null } : p);
+  saveData(data);
+  setState({ problems:data, expandedId:null });
+  flash(data.find(p=>p.id===id).mastered ? '已移至已熟悉 ✓' : '已移回复习队列');
+}
+
+function deleteProblem(id) {
+  if (!confirm('确定删除这道题？')) return;
+  const data = state.problems.filter(p=>p.id!==id);
+  saveData(data);
+  setState({ problems:data, expandedId:null });
+  flash('已删除');
+}
+
+/* ── Export / Import ── */
+function exportData() {
+  const json = JSON.stringify(state.problems, null, 2);
+  const ta = document.getElementById('data-area');
+  if (ta) { ta.value = json; ta.select(); }
+  try { navigator.clipboard.writeText(json); flash('已复制到剪贴板 ✓'); }
+  catch { flash('请手动复制下方文本'); }
+}
+
+function importData() {
+  const ta = document.getElementById('data-area');
+  if (!ta || !ta.value.trim()) { flash('请先粘贴数据'); return; }
+  try {
+    const data = JSON.parse(ta.value.trim());
+    if (!Array.isArray(data)) throw new Error();
+    saveData(data);
+    setState({ problems:data });
+    flash(`导入成功，共 ${data.length} 条记录 ✓`);
+  } catch { flash('数据格式错误，请检查'); }
+}
+
+function clearAllData() {
+  if (!confirm('确定清空所有数据？此操作不可恢复！')) return;
+  saveData([]);
+  setState({ problems:[] });
+  flash('已清空所有数据');
+}
+
+/* ── Derived ── */
+function getDue() {
+  const res = [];
+  state.problems.forEach(p => {
+    if (p.mastered) return;
+    p.reviews.forEach(r => {
+      if (!r.done && isDue(r.scheduledDate)) res.push({ problem:p, review:r });
+    });
+  });
+  res.sort((a,b) => a.review.scheduledDate.localeCompare(b.review.scheduledDate));
+  return res;
+}
+
+function getUpcoming() {
+  const res = [];
+  state.problems.forEach(p => {
+    if (p.mastered) return;
+    p.reviews.forEach(r => {
+      if (!r.done && !isDue(r.scheduledDate) && daysFrom(r.scheduledDate)<=14) {
+        res.push({ problem:p, review:r, diff:daysFrom(r.scheduledDate) });
+      }
+    });
+  });
+  res.sort((a,b) => a.diff - b.diff);
+  return res.slice(0, 6);
+}
+
+function getActive() {
+  return state.problems.filter(p=>!p.mastered).sort((a,b)=>b.dateAdded.localeCompare(a.dateAdded));
+}
+function getMastered() {
+  return state.problems.filter(p=>p.mastered).sort((a,b)=>(b.masteredDate||b.dateAdded).localeCompare(a.masteredDate||a.dateAdded));
+}
+
+/* ═══════ RENDER ═══════ */
+function render() {
+  const due = getDue(), upcoming = getUpcoming();
+  const active = getActive(), mastered = getMastered();
+  const app = document.getElementById('app');
+
+  let html = '';
+
+  // Toast
+  if (state.toast) html += `<div class="toast">${state.toast}</div>`;
+
+  // Header
+  html += `<div class="header">
+    <h1>📖 考研错题复习</h1>
+    <div class="sub">间隔复习 · 3天 → 7天 → 15天</div>
+    <div class="stats">
+      <div class="stat-box"><div class="stat-num">${due.length}</div><div class="stat-label">待复习</div></div>
+      <div class="stat-box"><div class="stat-num">${active.length}</div><div class="stat-label">跟踪中</div></div>
+      <div class="stat-box"><div class="stat-num">${mastered.length}</div><div class="stat-label">已熟悉</div></div>
+    </div>
+  </div>`;
+
+  // Tabs
+  const tabs = [
+    { id:'today', label:`待复习${due.length?` (${due.length})`:'' }` },
+    { id:'all', label:'全部' },
+    { id:'mastered', label:'已熟悉' },
+    { id:'data', label:'⚙' },
+  ];
+  html += `<div class="tab-bar">${tabs.map(t =>
+    `<button class="tab-btn${state.tab===t.id?' active':''}" onclick="setState({tab:'${t.id}',expandedId:null})">${t.label}</button>`
+  ).join('')}</div>`;
+
+  html += '<div class="content">';
+
+  /* ── Today Tab ── */
+  if (state.tab === 'today') {
+    if (due.length === 0) {
+      html += `<div class="empty">
+        <div class="empty-icon">🎉</div>
+        <div class="empty-title">今天没有待复习的题</div>
+        <div class="empty-sub">${upcoming.length ? '最近一次复习在'+upcoming[0].diff+'天后' : '点击 + 录入错题开始'}</div>
+      </div>`;
+    } else {
+      due.forEach(({ problem:p, review:r }) => {
+        const s = getSub(p.subject);
+        const overdue = -daysFrom(r.scheduledDate);
+        const et = p.errorType ? getErr(p.errorType) : null;
+        html += `<div class="card">
+          <div class="card-top">
+            <span class="tag" style="color:${s.color};background:${s.bg}">${p.subject}</span>
+            <span class="problem-text">${esc(p.problemId)}</span>
+          </div>
+          ${et ? `<span class="error-type" style="background:${s.bg};color:${s.color}">${et.emoji} ${et.label}</span>` : ''}
+          ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
+          <div class="card-bottom">
+            <span class="review-badge ${overdue>0?'badge-urgent':'badge-normal'}">
+              第${r.round}轮${overdue>0 ? ' · 逾期'+overdue+'天' : ' · '+r.label}
+            </span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-fail" onclick="completeReview('${p.id}','${r.id}',false)">✗ 做错了</button>
+              <button class="btn btn-done" onclick="completeReview('${p.id}','${r.id}',true)">✓ 做对了</button>
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+    // Upcoming
+    if (upcoming.length > 0) {
+      html += `<div class="section-label">📅 即将到来</div>`;
+      upcoming.forEach(({ problem:p, review:r, diff }) => {
+        const s = getSub(p.subject);
+        html += `<div class="card" style="opacity:0.65">
+          <div class="card-top">
+            <span class="tag" style="color:${s.color};background:${s.bg}">${p.subject}</span>
+            <span class="problem-text" style="font-size:13px">${esc(p.problemId)}</span>
+            <span class="date-text">${diff}天后 · 第${r.round}轮</span>
+          </div>
+        </div>`;
+      });
+    }
+  }
+
+  /* ── All Tab ── */
+  if (state.tab === 'all') {
+    if (active.length === 0) {
+      html += `<div class="empty"><div class="empty-icon">📝</div><div class="empty-title">还没有录入错题</div><div class="empty-sub">点击 + 开始记录</div></div>`;
+    } else {
+      active.forEach(p => {
+        const s = getSub(p.subject);
+        const expanded = state.expandedId === p.id;
+        const allDone = p.reviews.every(r => r.done && r.correct);
+        const et = p.errorType ? getErr(p.errorType) : null;
+        html += `<div class="card" onclick="setState({expandedId:state.expandedId==='${p.id}'?null:'${p.id}'})">
+          <div class="card-top">
+            <span class="tag" style="color:${s.color};background:${s.bg}">${p.subject}</span>
+            <span class="problem-text">${esc(p.problemId)}</span>
+            <span class="date-text">${friendlyDate(p.dateAdded)}</span>
+          </div>
+          ${et ? `<span class="error-type" style="background:${s.bg};color:${s.color}">${et.emoji} ${et.label}</span>` : ''}
+          ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
+          <div class="review-row">${p.reviews.map((r,i) => {
+            const cls = r.done&&r.correct ? 'dot-done' : (isDue(r.scheduledDate)&&!r.done ? 'dot-due' : 'dot-pending');
+            const txt = r.done&&r.correct ? '✓' : (isDue(r.scheduledDate)&&!r.done ? '待复习' : friendlyDate(r.scheduledDate));
+            return `<span class="review-dot"><span class="dot ${cls}"></span>第${i+1}轮 ${txt}</span>`;
+          }).join('')}</div>
+          ${expanded ? `<div class="expanded"><div class="action-row">
+            <button class="btn btn-action" onclick="event.stopPropagation();openEdit(state.problems.find(x=>x.id==='${p.id}'))">✏️ 编辑</button>
+            <button class="btn btn-master" onclick="event.stopPropagation();toggleMastered('${p.id}')">✅ ${allDone?'移至已熟悉':'直接标记熟悉'}</button>
+            <button class="btn btn-danger" onclick="event.stopPropagation();deleteProblem('${p.id}')">🗑 删除</button>
+          </div></div>` : ''}
+        </div>`;
+      });
+    }
+  }
+
+  /* ── Mastered Tab ── */
+  if (state.tab === 'mastered') {
+    if (mastered.length === 0) {
+      html += `<div class="empty"><div class="empty-icon">🌱</div><div class="empty-title">还没有已熟悉的题</div><div class="empty-sub">完成复习后可移到这里</div></div>`;
+    } else {
+      mastered.forEach(p => {
+        const s = getSub(p.subject);
+        html += `<div class="card" style="opacity:0.85">
+          <div class="card-top">
+            <span class="tag" style="color:${s.color};background:${s.bg}">${p.subject}</span>
+            <span class="problem-text">${esc(p.problemId)}</span>
+            <span class="date-text">${friendlyDate(p.dateAdded)}</span>
+          </div>
+          ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
+          <div class="action-row" style="margin-top:8px">
+            <button class="btn btn-danger" onclick="toggleMastered('${p.id}')">↩ 移回复习</button>
+          </div>
+        </div>`;
+      });
+    }
+  }
+
+  /* ── Data Tab ── */
+  if (state.tab === 'data') {
+    html += `<div class="data-panel">
+      <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)">📦 数据管理</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+        数据存储在浏览器本地。<strong>建议定期导出备份</strong>，防止数据丢失。导出的 JSON 可以随时导入恢复。
+      </div>
+      <button class="data-btn" onclick="exportData()">📤 导出数据（复制到剪贴板）</button>
+      <textarea id="data-area" class="data-textarea" placeholder="导出的数据会显示在这里。导入时，粘贴 JSON 数据到这里再点导入。"></textarea>
+      <button class="data-btn" onclick="importData()">📥 导入数据</button>
+      <div style="height:16px"></div>
+      <button class="data-btn danger" onclick="clearAllData()">🗑 清空所有数据</button>
+      <div style="margin-top:20px;font-size:11px;color:var(--text3);line-height:1.6">
+        当前记录数：${state.problems.length}<br>
+        存储 Key：${STORAGE_KEY}<br>
+        复习间隔：3天 → 7天 → 15天<br>
+        做错处理：重置为当前日期+3天
+      </div>
+    </div>`;
+  }
+
+  html += '</div>'; // .content
+
+  // FAB
+  html += `<button class="fab" onclick="openAdd()">+</button>`;
+
+  // Modal
+  if (state.showForm) {
+    const isEdit = !!state.editId;
+    html += `<div class="overlay" onclick="setState({showForm:false})">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-head">
+          <span class="modal-title">${isEdit?'编辑题目':'录入错题'}</span>
+          <button class="modal-close" onclick="setState({showForm:false})">✕</button>
+        </div>
+        <div class="form-group">
+          <div class="form-label">科目</div>
+          <div class="subject-picker">${SUBJECTS.map(s =>
+            `<button class="subject-btn${state.fSubject===s.name?' active':''}" style="${state.fSubject===s.name?`color:${s.color};background:${s.bg};border-color:${s.color}`:''}" onclick="setState({fSubject:'${s.name}'})">${s.name}</button>`
+          ).join('')}</div>
+        </div>
+        <div class="form-group">
+          <div class="form-label">题目描述</div>
+          <input class="form-input" id="f-problem" placeholder="例：张宇30讲 第5讲 例题3" value="${esc(state.fProblem)}" oninput="state.fProblem=this.value">
+        </div>
+        <div class="form-group">
+          <div class="form-label">错因分类（选填）</div>
+          <div class="error-picker">${ERROR_TYPES.map(e =>
+            `<button class="error-btn${state.fErrorType===e.id?' active':''}" onclick="setState({fErrorType:state.fErrorType==='${e.id}'?'':'${e.id}'})">${e.emoji} ${e.label}</button>`
+          ).join('')}</div>
+        </div>
+        <div class="form-group">
+          <div class="form-label">错因备注（选填）</div>
+          <input class="form-input" id="f-notes" placeholder="例：换元积分忘记换上下限" value="${esc(state.fNotes)}" oninput="state.fNotes=this.value">
+        </div>
+        <div class="form-group">
+          <div class="form-label">做题日期</div>
+          <input type="date" class="form-input" value="${state.fDate}" onchange="setState({fDate:this.value})">
+          <div class="preview-text">复习安排：${friendlyDate(addDays(state.fDate,3))}（3天后）· ${friendlyDate(addDays(state.fDate,7))}（7天后）· ${friendlyDate(addDays(state.fDate,15))}（15天后）</div>
+        </div>
+        <button class="submit-btn" onclick="submitForm()">${isEdit?'保存修改':'✓ 录入'}</button>
+      </div>
+    </div>`;
+  }
+
+  app.innerHTML = html;
+
+  // Auto-focus problem input
+  if (state.showForm) {
+    const inp = document.getElementById('f-problem');
+    if (inp && !state.editId) setTimeout(() => inp.focus(), 100);
+  }
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Initial render
+render();
+</script>
+</body>
+</html>
