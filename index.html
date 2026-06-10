@@ -26,7 +26,6 @@ body {
   max-width: 500px; margin: 0 auto; padding-bottom: 90px;
   -webkit-font-smoothing: antialiased;
 }
-/* ── Header ── */
 .header {
   background: linear-gradient(135deg, var(--pri) 0%, var(--pri-dark) 100%);
   color: #fff; padding: 22px 20px 16px; border-radius: 0 0 22px 22px;
@@ -34,16 +33,13 @@ body {
 }
 .header h1 { font-size: 21px; font-weight: 700; letter-spacing: 0.5px; }
 .header .sub { font-size: 12px; opacity: 0.8; margin-top: 3px; }
-.stats {
-  display: flex; gap: 8px; margin-top: 14px;
-}
+.stats { display: flex; gap: 8px; margin-top: 14px; }
 .stat-box {
   flex: 1; background: rgba(255,255,255,0.18); border-radius: 12px;
   padding: 10px 0; text-align: center; backdrop-filter: blur(6px);
 }
 .stat-num { font-size: 22px; font-weight: 700; }
 .stat-label { font-size: 10px; opacity: 0.85; margin-top: 2px; }
-/* ── Tabs ── */
 .tab-bar {
   display: flex; margin: 14px 16px 0; background: var(--card);
   border-radius: var(--radius); padding: 3px; box-shadow: var(--shadow);
@@ -54,13 +50,11 @@ body {
   font-weight: 600; cursor: pointer; transition: all 0.2s;
 }
 .tab-btn.active { background: var(--pri); color: #fff; }
-/* ── Content ── */
 .content { padding: 10px 16px; }
 .section-label {
   font-size: 12px; font-weight: 600; color: var(--text3);
   margin: 14px 0 8px 4px; display: flex; align-items: center; gap: 6px;
 }
-/* ── Cards ── */
 .card {
   background: var(--card); border-radius: var(--radius); padding: 14px 16px;
   margin-bottom: 10px; box-shadow: var(--shadow); transition: transform 0.12s;
@@ -79,25 +73,21 @@ body {
   border-radius: 6px; margin-top: 6px; font-weight: 500;
 }
 .note-text { font-size: 12px; color: var(--text2); margin-top: 5px; line-height: 1.4; }
-/* review dots */
 .review-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
 .review-dot {
   display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text3);
 }
-.dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-}
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot-done { background: var(--green); }
 .dot-due { background: var(--pri); }
 .dot-pending { background: #DDD; }
-/* review badge */
+.dot-blocked { background: #EEE; }
 .review-badge {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
 }
 .badge-urgent { background: var(--pri-light); color: var(--pri); }
 .badge-normal { background: var(--blue-bg); color: var(--blue); }
-/* buttons */
 .btn {
   padding: 8px 16px; border-radius: 10px; border: none;
   font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
@@ -113,14 +103,11 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 10px; gap: 8px;
 }
-/* ── Expanded area ── */
 .expanded { margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0EDEA; }
-/* ── Empty ── */
 .empty { text-align: center; padding: 44px 20px; color: var(--text3); }
 .empty-icon { font-size: 38px; margin-bottom: 10px; }
 .empty-title { font-size: 15px; font-weight: 600; color: var(--text2); }
 .empty-sub { font-size: 12px; margin-top: 5px; }
-/* ── FAB ── */
 .fab {
   position: fixed; bottom: 24px; right: 24px; width: 54px; height: 54px;
   border-radius: 50%; background: linear-gradient(135deg, var(--pri), var(--pri-dark));
@@ -128,7 +115,6 @@ body {
   cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 50;
 }
 .fab:active { transform: scale(0.92); }
-/* ── Modal ── */
 .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100;
   display: flex; align-items: flex-end; justify-content: center;
@@ -178,7 +164,6 @@ body {
 }
 .submit-btn:active { opacity: 0.85; }
 .preview-text { font-size: 11px; color: var(--text3); margin-top: 6px; }
-/* ── Toast ── */
 .toast {
   position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
   background: var(--text); color: #fff; padding: 10px 22px; border-radius: 12px;
@@ -191,7 +176,6 @@ body {
   78% { opacity:1; transform:translateX(-50%) translateY(0); }
   100% { opacity:0; transform:translateX(-50%) translateY(-8px); }
 }
-/* ── Settings/Data panel ── */
 .data-panel { padding: 16px; }
 .data-btn {
   width: 100%; padding: 14px; border-radius: var(--radius); border: 2px solid #EEE;
@@ -213,14 +197,17 @@ body {
 <div id="app"></div>
 
 <script>
-/* ═══════════════════════════════════════
-   考研错题复习 - Spaced Repetition Tracker
-   间隔：3天 → 7天 → 15天
-   ═══════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   考研错题复习 v2 - Fixed Spaced Repetition
+   轮次间隔：3天 → 7天 → 15天（累计：+3, +10, +25）
+   修复：顺序执行 · 级联推迟 · 显示完成日期
+   ═══════════════════════════════════════════════ */
 
-const STORAGE_KEY = 'kaoyan_review_v3';
-const INTERVALS = [3, 7, 15];
-const INTERVAL_LABELS = ['3天后', '7天后', '15天后'];
+const STORAGE_KEY = 'kaoyan_review_v4';
+const OLD_STORAGE_KEY = 'kaoyan_review_v3';
+const INTERVALS = [3, 10, 25];       // 累计天数（距录入日）
+const INTER_GAPS = [3, 7, 15];       // 轮次间隔
+const INTERVAL_LABELS = ['3天后', '10天后', '25天后'];
 
 const SUBJECTS = [
   { name:'高数', color:'#D4836A', bg:'#FBF0EB' },
@@ -246,7 +233,7 @@ const toDateStr = d => { const x=new Date(d); return `${x.getFullYear()}-${pad(x
 const addDays = (s,n) => { const d=new Date(s+'T00:00:00'); d.setDate(d.getDate()+n); return toDateStr(d); };
 const isDue = s => s <= todayStr();
 const daysFrom = s => { const a=new Date(todayStr()+'T00:00:00'),b=new Date(s+'T00:00:00'); return Math.round((b-a)/864e5); };
-const friendlyDate = s => { const d=new Date(s+'T00:00:00'); return `${d.getMonth()+1}月${d.getDate()}日`; };
+const friendlyDate = s => { if(!s) return ''; const d=new Date(s+'T00:00:00'); return `${d.getMonth()+1}/${d.getDate()}`; };
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const getSub = name => SUBJECTS.find(s=>s.name===name) || SUBJECTS[6];
 const getErr = id => ERROR_TYPES.find(e=>e.id===id);
@@ -256,24 +243,78 @@ const buildReviews = dateAdded => INTERVALS.map((days,i) => ({
   scheduledDate: addDays(dateAdded, days), done: false, correct: false,
 }));
 
+/* ── Migration ── */
+function migrateProblems(problems) {
+  if (!Array.isArray(problems)) return [];
+  return problems.map(p => {
+    if (!p.reviews || p.reviews.length < 3) {
+      return { ...p, reviews: buildReviews(p.dateAdded) };
+    }
+    return {
+      ...p,
+      reviews: INTERVALS.map((days, i) => {
+        const old = p.reviews[i];
+        const newScheduled = addDays(p.dateAdded, days);
+        if (old && old.done) {
+          // keep completed status, update interval metadata
+          return { ...old, days, label: INTERVAL_LABELS[i], scheduledDate: newScheduled };
+        }
+        return {
+          id: old ? old.id : uid(),
+          round: i + 1,
+          days,
+          label: INTERVAL_LABELS[i],
+          scheduledDate: newScheduled,
+          done: false,
+          correct: false,
+        };
+      })
+    };
+  });
+}
+
+/* ── Embedded data (fallback if localStorage empty) ── */
+const EMBEDDED_DATA = [{"id":"mq7itl4avu9c","subject":"高数","problemId":"课后17.6","notes":"公式法和一般方法都做一下","errorType":"method","dateAdded":"2026-06-10","reviews":[{"id":"mq7itl4agwtp","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-13","done":false,"correct":false},{"id":"mq7itl4avk77","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-17","done":false,"correct":false},{"id":"mq7itl4a0u5s","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-25","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-10T03:40:27.562Z"},{"id":"mq7ist4xh250","subject":"高数","problemId":"课后17.5","notes":"思路清晰点知道自己在做什么","errorType":"careless","dateAdded":"2026-06-10","reviews":[{"id":"mq7ist4x7gyh","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-13","done":false,"correct":false},{"id":"mq7ist4xcfjo","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-17","done":false,"correct":false},{"id":"mq7ist4xdiyg","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-25","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-10T03:39:51.297Z"},{"id":"mq7gmm8aglk8","subject":"高数","problemId":"例17.9","notes":"学习思考方法 多练","errorType":"method","dateAdded":"2026-06-10","reviews":[{"id":"mq7gmm8b7liz","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-13","done":false,"correct":false},{"id":"mq7gmm8bioi0","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-17","done":false,"correct":false},{"id":"mq7gmm8bg7wz","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-25","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-10T02:39:03.179Z"},{"id":"mq6lmk60a0pv","subject":"高数","problemId":"例17.5","notes":"方法思路不熟 理解每一步代表什么","errorType":"method","dateAdded":"2026-06-09","reviews":[{"id":"mq6lmk60b4qd","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-12","done":false,"correct":false},{"id":"mq6lmk60opa3","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-16","done":false,"correct":false},{"id":"mq6lmk60wpp9","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-24","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-09T12:11:12.408Z"},{"id":"mq6e8v9b3k1k","subject":"高数","problemId":"例17.1","notes":"可微的定义概念 告诫无穷小的定义概念","errorType":"concept","dateAdded":"2026-06-09","reviews":[{"id":"mq6e8v9bipi8","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-12","done":false,"correct":false},{"id":"mq6e8v9ce4k4","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-16","done":false,"correct":false},{"id":"mq6e8v9c96at","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-24","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-09T08:44:36.288Z"},{"id":"mq4paobnrcni","subject":"高数","problemId":"课后16.11","notes":"掌握新的结论","errorType":"method","dateAdded":"2026-06-08","reviews":[{"id":"mq4paobn59nu","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-11","done":false,"correct":false},{"id":"mq4paobnyrcl","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-15","done":false,"correct":false},{"id":"mq4paobnbiv2","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-23","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-08T04:18:24.035Z"},{"id":"mq4p9rjoud3h","subject":"高数","problemId":"课后16.13","notes":"计算细节和结论 脑子里清晰不","errorType":"concept","dateAdded":"2026-06-08","reviews":[{"id":"mq4p9rjo1cfs","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-11","done":false,"correct":false},{"id":"mq4p9rjoohd2","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-15","done":false,"correct":false},{"id":"mq4p9rjomnra","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-23","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-08T04:17:41.556Z"},{"id":"mq3gzzvgb2hd","subject":"高数","problemId":"例16.8","notes":"比较判别法和放缩的融合","errorType":"method","dateAdded":"2026-06-07","reviews":[{"id":"mq3gzzvg0f6k","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-10","done":true,"correct":true,"completedDate":"2026-06-10"},{"id":"mq3gzzvg17no","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-14","done":false,"correct":false},{"id":"mq3gzzvgku2o","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-22","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-07T07:38:22.684Z"},{"id":"mq3a9j1qikn6","subject":"高数","problemId":"例16.35","notes":"学习知识的融合 方法的贯通","errorType":"method","dateAdded":"2026-06-07","reviews":[{"id":"mq3a9j1qi1uv","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-13","done":false,"correct":false},{"id":"mq3a9j1qcad3","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-14","done":false,"correct":false},{"id":"mq3a9j1q0665","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-22","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-07T04:29:50.126Z"},{"id":"mq3a8n28zumk","subject":"高数","problemId":"例16.34","notes":"细节上结论记住了记清楚","errorType":"concept","dateAdded":"2026-06-07","reviews":[{"id":"mq3a8n28fvqk","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-13","done":false,"correct":false},{"id":"mq3a8n280dmt","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-14","done":false,"correct":false},{"id":"mq3a8n28zq9f","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-22","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-07T04:29:08.672Z"},{"id":"mq2gkhatzrtv","subject":"高数","problemId":"课后16.6","notes":"收敛区间的位置和展开点有关","errorType":"concept","dateAdded":"2026-06-06","reviews":[{"id":"mq2gkhatugwk","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-09","done":true,"correct":true,"completedDate":"2026-06-09"},{"id":"mq2gkhatxr2f","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-13","done":false,"correct":false},{"id":"mq2gkhath955","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-21","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-06T14:38:32.597Z"},{"id":"mq2fxyqhxuvw","subject":"高数","problemId":"课后16.3","notes":"厘清有哪些方法再筛选","errorType":"method","dateAdded":"2026-06-06","reviews":[{"id":"mq2fxyqhzpse","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-12","done":false,"correct":false},{"id":"mq2fxyqh8yl0","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-13","done":false,"correct":false},{"id":"mq2fxyqheaca","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-21","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-06T14:21:02.105Z"},{"id":"mq2fx0wbpo5u","subject":"高数","problemId":"例16.28","notes":"考研最多考这种程度","errorType":"method","dateAdded":"2026-06-06","reviews":[{"id":"mq2fx0wbwqtb","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-12","done":false,"correct":false},{"id":"mq2fx0wbxxzf","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-13","done":false,"correct":false},{"id":"mq2fx0wbuuyi","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-21","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-06T14:20:18.251Z"},{"id":"mq0jza9v41kz","subject":"高数","problemId":"例16.26","notes":"方法不熟再做几遍吧🫰","errorType":"method","dateAdded":"2026-06-05","reviews":[{"id":"mq0jza9vgypk","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-08","done":true,"correct":true,"completedDate":"2026-06-08"},{"id":"mq0jza9vi34g","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-12","done":false,"correct":false},{"id":"mq0jza9v1il0","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-20","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-05T06:38:29.827Z"},{"id":"mpxilgbsat8b","subject":"高数","problemId":"例16.21","notes":"边界问题该如何思考","errorType":"concept","dateAdded":"2026-06-03","reviews":[{"id":"mpxilgbs5cam","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-09","done":true,"correct":true,"completedDate":"2026-06-09"},{"id":"mpxilgbsrbfd","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-10","done":false,"correct":false},{"id":"mpxilgbsbsxt","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-18","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-03T03:36:26.344Z"},{"id":"mpxikkhn9bl3","subject":"高数","problemId":"例16.19","notes":"学习这种不要脸的放缩方法","errorType":"method","dateAdded":"2026-06-03","reviews":[{"id":"mpxikkhn6sxo","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-09","done":true,"correct":true,"completedDate":"2026-06-09"},{"id":"mpxikkhnq8ht","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-10","done":false,"correct":false},{"id":"mpxikkhoqmtv","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-18","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-03T03:35:45.084Z"},{"id":"mpxiju4ox4kx","subject":"高数","problemId":"例16.17","notes":"把结论记住了","errorType":"method","dateAdded":"2026-06-03","reviews":[{"id":"mpxiju4oanc6","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-09","done":true,"correct":true,"completedDate":"2026-06-09"},{"id":"mpxiju4ofm1g","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-10","done":false,"correct":false},{"id":"mpxiju4o8zps","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-18","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-03T03:35:10.920Z"},{"id":"mpxij7jiabz4","subject":"高数","problemId":"例16.16","notes":"要做就按着方法往下 怕什么","errorType":"calc","dateAdded":"2026-06-03","reviews":[{"id":"mpxij7jij9tl","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-09","done":true,"correct":true,"completedDate":"2026-06-09"},{"id":"mpxij7ji8sla","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-10","done":false,"correct":false},{"id":"mpxij7jiyxpt","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-18","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-03T03:34:41.646Z"},{"id":"mpxii05gksfe","subject":"高数","problemId":"例16.15","notes":"交错级数判别敛散性的整体思路","errorType":"method","dateAdded":"2026-06-03","reviews":[{"id":"mpxii05gn9xa","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-09","done":true,"correct":true,"completedDate":"2026-06-09"},{"id":"mpxii05g1cyz","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-10","done":false,"correct":false},{"id":"mpxii05gh93b","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-18","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-03T03:33:45.412Z"},{"id":"mpuvaa52sbk7","subject":"高数","problemId":"例16.12","notes":"克服畏难情绪 非常简单 计算变形技巧","errorType":"calc","dateAdded":"2026-06-01","reviews":[{"id":"mpuvaa5275pb","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-10","done":false,"correct":false},{"id":"mpuvaa52gdo3","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-08","done":true,"correct":true,"completedDate":"2026-06-08"},{"id":"mpuvaa526y66","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-16","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-01T07:08:21.590Z"},{"id":"mpuv8uyfvk65","subject":"高数","problemId":"例16.10（2）","notes":"学习变形技巧和计算思路计算技巧","errorType":"method","dateAdded":"2026-06-01","reviews":[{"id":"mpuv8uyf9h84","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-07","done":true,"correct":true,"completedDate":"2026-06-07"},{"id":"mpuv8uyfcatr","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-08","done":true,"correct":true,"completedDate":"2026-06-08"},{"id":"mpuv8uyfsu13","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-16","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-01T07:07:15.255Z"},{"id":"mpuv76euvnnp","subject":"高数","problemId":"例16.5","notes":"学会数学规范表达","errorType":"careless","dateAdded":"2026-06-01","reviews":[{"id":"mpuv76eu2o8c","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-04","done":true,"correct":true,"completedDate":"2026-06-04"},{"id":"mpuv76eu06d9","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-08","done":true,"correct":true,"completedDate":"2026-06-08"},{"id":"mpuv76euw440","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-16","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-01T07:05:56.790Z"},{"id":"mpunjtd0vs6n","subject":"高数","problemId":"课后15.13","notes":"两遍一起求导时注意注意","errorType":"calc","dateAdded":"2026-06-01","reviews":[{"id":"mpunjtd1uqa5","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-07","done":true,"correct":true,"completedDate":"2026-06-07"},{"id":"mpunjtd1r3jh","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-11","done":false,"correct":false},{"id":"mpunjtd18q9p","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-16","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-01T03:31:49.477Z"},{"id":"mpunj1v1uy7n","subject":"高数","problemId":"课后15.12","notes":"大胆去翻译题目","errorType":"method","dateAdded":"2026-06-01","reviews":[{"id":"mpunj1v1f4gb","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-04","done":true,"correct":true,"completedDate":"2026-06-04"},{"id":"mpunj1v1ofsp","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-11","done":false,"correct":false},{"id":"mpunj1v162xf","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-16","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-01T03:31:13.837Z"},{"id":"mpunhwetagax","subject":"高数","problemId":"课后15.11","notes":"无穷小比阶的方法 泰勒展开式记不记","errorType":"method","dateAdded":"2026-06-01","reviews":[{"id":"mpunhwetj3g1","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-04","done":true,"correct":true,"completedDate":"2026-06-04"},{"id":"mpunhwetpq8x","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-08","done":true,"correct":true,"completedDate":"2026-06-08"},{"id":"mpunhwetqkq6","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-16","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-01T03:30:20.117Z"},{"id":"mpunh2n4q7dm","subject":"高数","problemId":"课后15.19","notes":"变限积分的计算就是要求导","errorType":"method","dateAdded":"2026-06-01","reviews":[{"id":"mpunh2n4fj36","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-04","done":true,"correct":true,"completedDate":"2026-06-04"},{"id":"mpunh2n4biqp","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-08","done":true,"correct":true,"completedDate":"2026-06-08"},{"id":"mpunh2n5aa0x","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-16","done":false,"correct":false}],"mastered":false,"createdAt":"2026-06-01T03:29:41.537Z"},{"id":"mptwrp05zsar","subject":"高数","problemId":"例10.4","notes":"多练 不要畏难情绪 其实根本不难","errorType":"calc","dateAdded":"2026-05-30","reviews":[{"id":"mptwrp0516en","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-02","done":true,"correct":true,"completedDate":"2026-06-02"},{"id":"mptwrp05bswf","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-06","done":true,"correct":true,"completedDate":"2026-06-06"},{"id":"mptwrp05z05h","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-14","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T15:02:07.445Z"},{"id":"mptwqqc7z2q6","subject":"高数","problemId":"例15.9","notes":"涉及极限的做法 两个重要极限结论","errorType":"method","dateAdded":"2026-05-30","reviews":[{"id":"mptwqqc7hpsr","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-05","done":true,"correct":true,"completedDate":"2026-06-05"},{"id":"mptwqqc7ucdz","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-06","done":true,"correct":true,"completedDate":"2026-06-06"},{"id":"mptwqqc7rnih","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-14","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T15:01:22.519Z"},{"id":"mptwpf9oohsx","subject":"高数","problemId":"例15.21","notes":"题目的翻译以及潜在条件无法挖掘","errorType":"method","dateAdded":"2026-05-30","reviews":[{"id":"mptwpf9pugwo","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-08","done":true,"correct":true,"completedDate":"2026-06-08"},{"id":"mptwpf9p9qdz","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-06","done":true,"correct":true,"completedDate":"2026-06-06"},{"id":"mptwpf9pd659","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-14","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T15:00:21.517Z"},{"id":"mptwotoh4sv9","subject":"高数","problemId":"例15.23","notes":"题目的翻译还是不熟","errorType":"method","dateAdded":"2026-05-30","reviews":[{"id":"mptwotoh0e3w","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-02","done":true,"correct":true,"completedDate":"2026-06-02"},{"id":"mptwotohsvez","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-06","done":true,"correct":true,"completedDate":"2026-06-06"},{"id":"mptwotohoqy0","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-14","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T14:59:53.537Z"},{"id":"mptwnrvb0pla","subject":"高数","problemId":"课后15.8","notes":"绝对值问题想到却不去讨论分析","errorType":"concept","dateAdded":"2026-05-31","reviews":[{"id":"mptwnrvbw1qc","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-06","done":true,"correct":true,"completedDate":"2026-06-06"},{"id":"mptwnrvbp4jl","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-07","done":true,"correct":true,"completedDate":"2026-06-07"},{"id":"mptwnrvbfns8","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-15","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T14:59:04.535Z"},{"id":"mptwn1yhr392","subject":"高数","problemId":"课后15.7","notes":"题目的解题思路不流畅","errorType":"method","dateAdded":"2026-05-31","reviews":[{"id":"mptwn1yifrrd","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-03","done":true,"correct":true,"completedDate":"2026-06-03"},{"id":"mptwn1yipzmn","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-07","done":true,"correct":true,"completedDate":"2026-06-07"},{"id":"mptwn1yi47am","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-15","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T14:58:30.954Z"},{"id":"mptwma69m096","subject":"高数","problemId":"课后15.5","notes":"恒等变形想不到","errorType":"method","dateAdded":"2026-05-31","reviews":[{"id":"mptwma69b2ta","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-03","done":true,"correct":true,"completedDate":"2026-06-03"},{"id":"mptwma69c6s8","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-07","done":true,"correct":true,"completedDate":"2026-06-07"},{"id":"mptwma69njya","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-15","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T14:57:54.945Z"},{"id":"mptwleyc4wtl","subject":"高数","problemId":"课后15.2","notes":"解的结构及其结论概念不熟悉","errorType":"concept","dateAdded":"2026-05-31","reviews":[{"id":"mptwleycfgn7","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-03","done":true,"correct":true,"completedDate":"2026-06-03"},{"id":"mptwleycqd1g","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-07","done":true,"correct":true,"completedDate":"2026-06-07"},{"id":"mptwleyc1re1","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-15","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T14:57:14.484Z"},{"id":"mptwk6rpbaho","subject":"高数","problemId":"课后15.1","notes":"对于解的结构概念不清晰 结论不熟悉","errorType":"concept","dateAdded":"2026-05-31","reviews":[{"id":"mptwk6rp3dj1","round":1,"days":3,"label":"3天后","scheduledDate":"2026-06-03","done":true,"correct":true,"completedDate":"2026-06-03"},{"id":"mptwk6rq3ozs","round":2,"days":7,"label":"7天后","scheduledDate":"2026-06-07","done":true,"correct":true,"completedDate":"2026-06-07"},{"id":"mptwk6rqcy08","round":3,"days":15,"label":"15天后","scheduledDate":"2026-06-15","done":false,"correct":false}],"mastered":false,"createdAt":"2026-05-31T14:56:17.222Z"}];
+
 /* ── Storage ── */
 function loadData() {
-  try { const s=localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : []; }
-  catch { return []; }
+  try {
+    const newRaw = localStorage.getItem(STORAGE_KEY);
+    if (newRaw) {
+      const parsed = JSON.parse(newRaw);
+      if (parsed && parsed._v === 2) return parsed.problems || [];
+      return migrateProblems(Array.isArray(parsed) ? parsed : []);
+    }
+    const oldRaw = localStorage.getItem(OLD_STORAGE_KEY);
+    if (oldRaw) {
+      const parsed = JSON.parse(oldRaw);
+      const migrated = migrateProblems(Array.isArray(parsed) ? parsed : []);
+      saveData(migrated);
+      return migrated;
+    }
+    if (EMBEDDED_DATA && EMBEDDED_DATA.length > 0) {
+      const migrated = migrateProblems(EMBEDDED_DATA);
+      saveData(migrated);
+      return migrated;
+    }
+    return [];
+  } catch(e) { console.error(e); return []; }
 }
+
 function saveData(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) { console.error(e); }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ _v: 2, problems: data }));
+  } catch(e) { console.error(e); }
 }
 
 /* ── App State ── */
 let state = {
   problems: loadData(),
-  tab: 'today', // today | all | mastered | data
+  tab: 'today',
   showForm: false,
   editId: null,
   expandedId: null,
   toast: '',
-  // form
   fSubject: '高数',
   fProblem: '',
   fNotes: '',
@@ -329,12 +370,29 @@ function submitForm() {
 function completeReview(pid, rid, correct) {
   const data = state.problems.map(p => {
     if (p.id !== pid) return p;
-    return { ...p, reviews: p.reviews.map(r => {
-      if (r.id !== rid) return r;
-      if (correct) return { ...r, done:true, correct:true, completedDate:todayStr() };
-      // Wrong: reset this round to today+3
-      return { ...r, scheduledDate: addDays(todayStr(), 3) };
-    })};
+    const rIdx = p.reviews.findIndex(r => r.id === rid);
+    if (rIdx < 0) return p;
+
+    if (correct) {
+      return { ...p, reviews: p.reviews.map((r, i) =>
+        i === rIdx ? { ...r, done:true, correct:true, completedDate:todayStr() } : r
+      )};
+    }
+
+    // Failed: reset this round to today+3, cascade subsequent rounds
+    const newReviews = p.reviews.map(r => ({...r}));
+    newReviews[rIdx].scheduledDate = addDays(todayStr(), 3);
+
+    for (let i = rIdx + 1; i < newReviews.length; i++) {
+      if (newReviews[i].done) continue;
+      const prevDate = newReviews[i-1].done ? newReviews[i-1].completedDate || newReviews[i-1].scheduledDate : newReviews[i-1].scheduledDate;
+      const minDate = addDays(prevDate, INTER_GAPS[i]);
+      if (newReviews[i].scheduledDate < minDate) {
+        newReviews[i].scheduledDate = minDate;
+      }
+    }
+
+    return { ...p, reviews: newReviews };
   });
   saveData(data);
   setState({ problems:data });
@@ -369,12 +427,31 @@ function importData() {
   const ta = document.getElementById('data-area');
   if (!ta || !ta.value.trim()) { flash('请先粘贴数据'); return; }
   try {
-    const data = JSON.parse(ta.value.trim());
+    let data = JSON.parse(ta.value.trim());
     if (!Array.isArray(data)) throw new Error();
+    // Auto-detect and migrate old format
+    if (data.length > 0 && data[0].reviews && data[0].reviews.length >= 2) {
+      const r = data[0].reviews;
+      const gap01 = daysFrom2(r[0].scheduledDate, data[0].dateAdded);
+      const gap12 = daysFrom2(r[1].scheduledDate, data[0].dateAdded);
+      // Old format: intervals were 3,7,15 from dateAdded
+      if (gap12 <= 8) {
+        data = migrateProblems(data);
+        flash(`已迁移并导入 ${data.length} 条记录 ✓`);
+      } else {
+        flash(`导入成功，共 ${data.length} 条记录 ✓`);
+      }
+    } else {
+      flash(`导入成功，共 ${data.length} 条记录 ✓`);
+    }
     saveData(data);
     setState({ problems:data });
-    flash(`导入成功，共 ${data.length} 条记录 ✓`);
   } catch { flash('数据格式错误，请检查'); }
+}
+
+function daysFrom2(dateA, dateB) {
+  const a = new Date(dateA+'T00:00:00'), b = new Date(dateB+'T00:00:00');
+  return Math.round((a-b)/864e5);
 }
 
 function clearAllData() {
@@ -384,13 +461,18 @@ function clearAllData() {
   flash('已清空所有数据');
 }
 
-/* ── Derived ── */
+/* ── Derived (with sequential enforcement) ── */
 function getDue() {
   const res = [];
   state.problems.forEach(p => {
     if (p.mastered) return;
-    p.reviews.forEach(r => {
-      if (!r.done && isDue(r.scheduledDate)) res.push({ problem:p, review:r });
+    p.reviews.forEach((r, i) => {
+      if (r.done) return;
+      if (!isDue(r.scheduledDate)) return;
+      // Sequential: all previous rounds must be done
+      const prevDone = p.reviews.slice(0, i).every(pr => pr.done);
+      if (!prevDone) return;
+      res.push({ problem:p, review:r });
     });
   });
   res.sort((a,b) => a.review.scheduledDate.localeCompare(b.review.scheduledDate));
@@ -401,14 +483,18 @@ function getUpcoming() {
   const res = [];
   state.problems.forEach(p => {
     if (p.mastered) return;
-    p.reviews.forEach(r => {
-      if (!r.done && !isDue(r.scheduledDate) && daysFrom(r.scheduledDate)<=14) {
-        res.push({ problem:p, review:r, diff:daysFrom(r.scheduledDate) });
-      }
+    p.reviews.forEach((r, i) => {
+      if (r.done) return;
+      if (isDue(r.scheduledDate)) return;
+      if (daysFrom(r.scheduledDate) > 14) return;
+      // Sequential: all previous rounds must be done
+      const prevDone = p.reviews.slice(0, i).every(pr => pr.done);
+      if (!prevDone) return;
+      res.push({ problem:p, review:r, diff:daysFrom(r.scheduledDate) });
     });
   });
   res.sort((a,b) => a.diff - b.diff);
-  return res.slice(0, 6);
+  return res.slice(0, 8);
 }
 
 function getActive() {
@@ -432,7 +518,7 @@ function render() {
   // Header
   html += `<div class="header">
     <h1>📖 考研错题复习</h1>
-    <div class="sub">间隔复习 · 3天 → 7天 → 15天</div>
+    <div class="sub">间隔复习 · 3天 → 10天 → 25天</div>
     <div class="stats">
       <div class="stat-box"><div class="stat-num">${due.length}</div><div class="stat-label">待复习</div></div>
       <div class="stat-box"><div class="stat-num">${active.length}</div><div class="stat-label">跟踪中</div></div>
@@ -485,7 +571,6 @@ function render() {
         </div>`;
       });
     }
-    // Upcoming
     if (upcoming.length > 0) {
       html += `<div class="section-label">📅 即将到来</div>`;
       upcoming.forEach(({ problem:p, review:r, diff }) => {
@@ -520,8 +605,20 @@ function render() {
           ${et ? `<span class="error-type" style="background:${s.bg};color:${s.color}">${et.emoji} ${et.label}</span>` : ''}
           ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
           <div class="review-row">${p.reviews.map((r,i) => {
-            const cls = r.done&&r.correct ? 'dot-done' : (isDue(r.scheduledDate)&&!r.done ? 'dot-due' : 'dot-pending');
-            const txt = r.done&&r.correct ? '✓' : (isDue(r.scheduledDate)&&!r.done ? '待复习' : friendlyDate(r.scheduledDate));
+            let cls, txt;
+            if (r.done && r.correct) {
+              cls = 'dot-done';
+              txt = friendlyDate(r.completedDate || r.scheduledDate) + ' ✓';
+            } else if (!r.done && isDue(r.scheduledDate) && p.reviews.slice(0,i).every(pr=>pr.done)) {
+              cls = 'dot-due';
+              txt = '待复习';
+            } else if (!r.done && !p.reviews.slice(0,i).every(pr=>pr.done)) {
+              cls = 'dot-blocked';
+              txt = friendlyDate(r.scheduledDate);
+            } else {
+              cls = 'dot-pending';
+              txt = friendlyDate(r.scheduledDate);
+            }
             return `<span class="review-dot"><span class="dot ${cls}"></span>第${i+1}轮 ${txt}</span>`;
           }).join('')}</div>
           ${expanded ? `<div class="expanded"><div class="action-row">
@@ -561,23 +658,24 @@ function render() {
     html += `<div class="data-panel">
       <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)">📦 数据管理</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
-        数据存储在浏览器本地。<strong>建议定期导出备份</strong>，防止数据丢失。导出的 JSON 可以随时导入恢复。
+        数据存储在浏览器本地。<strong>建议定期导出备份</strong>，防止数据丢失。导入旧版数据会自动迁移为新间隔。
       </div>
       <button class="data-btn" onclick="exportData()">📤 导出数据（复制到剪贴板）</button>
       <textarea id="data-area" class="data-textarea" placeholder="导出的数据会显示在这里。导入时，粘贴 JSON 数据到这里再点导入。"></textarea>
-      <button class="data-btn" onclick="importData()">📥 导入数据</button>
+      <button class="data-btn" onclick="importData()">📥 导入数据（兼容旧版）</button>
       <div style="height:16px"></div>
       <button class="data-btn danger" onclick="clearAllData()">🗑 清空所有数据</button>
       <div style="margin-top:20px;font-size:11px;color:var(--text3);line-height:1.6">
         当前记录数：${state.problems.length}<br>
         存储 Key：${STORAGE_KEY}<br>
-        复习间隔：3天 → 7天 → 15天<br>
-        做错处理：重置为当前日期+3天
+        复习间隔：3天 → 10天 → 25天（累计）<br>
+        轮次间隔：3天 · 7天 · 15天<br>
+        做错处理：当前轮 +3天，后续轮级联推迟
       </div>
     </div>`;
   }
 
-  html += '</div>'; // .content
+  html += '</div>';
 
   // FAB
   html += `<button class="fab" onclick="openAdd()">+</button>`;
@@ -614,7 +712,7 @@ function render() {
         <div class="form-group">
           <div class="form-label">做题日期</div>
           <input type="date" class="form-input" value="${state.fDate}" onchange="setState({fDate:this.value})">
-          <div class="preview-text">复习安排：${friendlyDate(addDays(state.fDate,3))}（3天后）· ${friendlyDate(addDays(state.fDate,7))}（7天后）· ${friendlyDate(addDays(state.fDate,15))}（15天后）</div>
+          <div class="preview-text">复习安排：${friendlyDate(addDays(state.fDate,3))}（3天后）· ${friendlyDate(addDays(state.fDate,10))}（10天后）· ${friendlyDate(addDays(state.fDate,25))}（25天后）</div>
         </div>
         <button class="submit-btn" onclick="submitForm()">${isEdit?'保存修改':'✓ 录入'}</button>
       </div>
@@ -623,7 +721,6 @@ function render() {
 
   app.innerHTML = html;
 
-  // Auto-focus problem input
   if (state.showForm) {
     const inp = document.getElementById('f-problem');
     if (inp && !state.editId) setTimeout(() => inp.focus(), 100);
@@ -635,7 +732,6 @@ function esc(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// Initial render
 render();
 </script>
 </body>
