@@ -184,12 +184,6 @@ body {
 }
 .data-btn:active { background: #F5F3F0; }
 .data-btn.danger { border-color: var(--pri-light); color: var(--pri); }
-.data-textarea {
-  width: 100%; height: 120px; border-radius: 12px; border: 2px solid #EEE;
-  padding: 12px; font-size: 12px; font-family: monospace; resize: vertical;
-  outline: none; margin-top: 8px;
-}
-.data-textarea:focus { border-color: var(--pri); }
 </style>
 </head>
 <body>
@@ -198,9 +192,9 @@ body {
 
 <script>
 /* ═══════════════════════════════════════════════
-   考研错题复习 v2 - Fixed Spaced Repetition
+   考研错题复习 v3 - Fixed Spaced Repetition
    轮次间隔：3天 → 7天 → 15天（累计：+3, +10, +25）
-   修复：顺序执行 · 级联推迟 · 显示完成日期
+   修复：按实际完成日顺延 · 安全迁移 · JSON 文件备份
    ═══════════════════════════════════════════════ */
 
 const STORAGE_KEY = 'kaoyan_review_v4';
@@ -254,17 +248,22 @@ function migrateProblems(problems) {
       ...p,
       reviews: INTERVALS.map((days, i) => {
         const old = p.reviews[i];
-        const newScheduled = addDays(p.dateAdded, days);
+        const baseScheduled = addDays(p.dateAdded, days);
+        const oldScheduled = old && /^\d{4}-\d{2}-\d{2}$/.test(old.scheduledDate || '')
+          ? old.scheduledDate : '';
         if (old && old.done) {
-          // keep completed status, update interval metadata
-          return { ...old, days, label: INTERVAL_LABELS[i], scheduledDate: newScheduled };
+          // Keep completed history exactly as it happened.
+          return { ...old, days, label: INTERVAL_LABELS[i], scheduledDate: oldScheduled || baseScheduled };
         }
         return {
+          ...(old || {}),
           id: old ? old.id : uid(),
           round: i + 1,
           days,
           label: INTERVAL_LABELS[i],
-          scheduledDate: newScheduled,
+          // Upgrade the old 3/7/15 schedule, but never erase a later
+          // date that was already created by a failed/late review.
+          scheduledDate: oldScheduled > baseScheduled ? oldScheduled : baseScheduled,
           done: false,
           correct: false,
         };
@@ -373,16 +372,23 @@ function completeReview(pid, rid, correct) {
     const rIdx = p.reviews.findIndex(r => r.id === rid);
     if (rIdx < 0) return p;
 
+    const newReviews = p.reviews.map(r => ({...r}));
+    const today = todayStr();
+
     if (correct) {
-      return { ...p, reviews: p.reviews.map((r, i) =>
-        i === rIdx ? { ...r, done:true, correct:true, completedDate:todayStr() } : r
-      )};
+      newReviews[rIdx] = {
+        ...newReviews[rIdx], done:true, correct:true, completedDate:today
+      };
+    } else {
+      // Failed: retry this round in 3 days.
+      newReviews[rIdx] = {
+        ...newReviews[rIdx], scheduledDate:addDays(today, 3),
+        done:false, correct:false
+      };
     }
 
-    // Failed: reset this round to today+3, cascade subsequent rounds
-    const newReviews = p.reviews.map(r => ({...r}));
-    newReviews[rIdx].scheduledDate = addDays(todayStr(), 3);
-
+    // Keep every unfinished later round at the intended distance from the
+    // actual completion/retry date, so overdue rounds cannot pile up today.
     for (let i = rIdx + 1; i < newReviews.length; i++) {
       if (newReviews[i].done) continue;
       const prevDate = newReviews[i-1].done ? newReviews[i-1].completedDate || newReviews[i-1].scheduledDate : newReviews[i-1].scheduledDate;
@@ -416,42 +422,45 @@ function deleteProblem(id) {
 
 /* ── Export / Import ── */
 function exportData() {
-  const json = JSON.stringify(state.problems, null, 2);
-  const ta = document.getElementById('data-area');
-  if (ta) { ta.value = json; ta.select(); }
-  try { navigator.clipboard.writeText(json); flash('已复制到剪贴板 ✓'); }
-  catch { flash('请手动复制下方文本'); }
+  const payload = {
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    problems: state.problems,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `kaoyan-review-backup-${todayStr()}.json`;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  flash('JSON 备份文件已导出 ✓');
 }
 
-function importData() {
-  const ta = document.getElementById('data-area');
-  if (!ta || !ta.value.trim()) { flash('请先粘贴数据'); return; }
+async function importDataFile(event) {
+  const input = event.target;
+  const file = input.files && input.files[0];
+  if (!file) return;
   try {
-    let data = JSON.parse(ta.value.trim());
-    if (!Array.isArray(data)) throw new Error();
-    // Auto-detect and migrate old format
-    if (data.length > 0 && data[0].reviews && data[0].reviews.length >= 2) {
-      const r = data[0].reviews;
-      const gap01 = daysFrom2(r[0].scheduledDate, data[0].dateAdded);
-      const gap12 = daysFrom2(r[1].scheduledDate, data[0].dateAdded);
-      // Old format: intervals were 3,7,15 from dateAdded
-      if (gap12 <= 8) {
-        data = migrateProblems(data);
-        flash(`已迁移并导入 ${data.length} 条记录 ✓`);
-      } else {
-        flash(`导入成功，共 ${data.length} 条记录 ✓`);
-      }
-    } else {
-      flash(`导入成功，共 ${data.length} 条记录 ✓`);
+    const parsed = JSON.parse(await file.text());
+    const list = Array.isArray(parsed) ? parsed : parsed && parsed.problems;
+    if (!Array.isArray(list) || !list.every(p => p && typeof p === 'object' && typeof p.dateAdded === 'string')) {
+      throw new Error('invalid backup');
     }
+    const data = migrateProblems(list);
+    if (!confirm(`将用文件中的 ${data.length} 条记录替换当前 ${state.problems.length} 条记录，确定吗？`)) return;
     saveData(data);
     setState({ problems:data });
-  } catch { flash('数据格式错误，请检查'); }
-}
-
-function daysFrom2(dateA, dateB) {
-  const a = new Date(dateA+'T00:00:00'), b = new Date(dateB+'T00:00:00');
-  return Math.round((a-b)/864e5);
+    flash(`导入成功，共 ${data.length} 条记录 ✓`);
+  } catch(e) {
+    console.error(e);
+    flash('文件格式错误，请选择有效的 JSON 备份');
+  } finally {
+    input.value = '';
+  }
 }
 
 function clearAllData() {
@@ -658,11 +667,11 @@ function render() {
     html += `<div class="data-panel">
       <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)">📦 数据管理</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
-        数据存储在浏览器本地。<strong>建议定期导出备份</strong>，防止数据丢失。导入旧版数据会自动迁移为新间隔。
+        数据存储在浏览器本地。<strong>建议定期下载 JSON 文件备份</strong>，防止数据丢失。新旧版备份文件都可以直接导入。
       </div>
-      <button class="data-btn" onclick="exportData()">📤 导出数据（复制到剪贴板）</button>
-      <textarea id="data-area" class="data-textarea" placeholder="导出的数据会显示在这里。导入时，粘贴 JSON 数据到这里再点导入。"></textarea>
-      <button class="data-btn" onclick="importData()">📥 导入数据（兼容旧版）</button>
+      <button class="data-btn" onclick="exportData()">⬇️ 下载 JSON 备份文件</button>
+      <input id="data-file" type="file" accept=".json,application/json" hidden onchange="importDataFile(event)">
+      <button class="data-btn" onclick="document.getElementById('data-file').click()">⬆️ 从文件导入 JSON 备份</button>
       <div style="height:16px"></div>
       <button class="data-btn danger" onclick="clearAllData()">🗑 清空所有数据</button>
       <div style="margin-top:20px;font-size:11px;color:var(--text3);line-height:1.6">
@@ -670,6 +679,7 @@ function render() {
         存储 Key：${STORAGE_KEY}<br>
         复习间隔：3天 → 10天 → 25天（累计）<br>
         轮次间隔：3天 · 7天 · 15天<br>
+        逾期做对：从实际完成日计算后续轮次<br>
         做错处理：当前轮 +3天，后续轮级联推迟
       </div>
     </div>`;
