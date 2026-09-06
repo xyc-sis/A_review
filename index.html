@@ -335,7 +335,7 @@ function undoLast() {
 function historyHTML(p) {
   const history = p.history || [];
   return `<details style="margin-top:10px" onclick="event.stopPropagation()"><summary>复习历史（${history.length}）</summary>` +
-    (history.length ? [...history].reverse().map(h => `<div class="note-text">${esc(h.date)} · ${h.round ? '第'+h.round+'轮 · ' : ''}${({correct:'独立做对',incorrect:'做错，继续复习',restart:'重新加入复习',edit:'修改题目',master:'手动标记熟悉'})[h.result] || '更新'}${h.legacy ? '（旧记录'+(h.estimatedDate?'，日期为原计划日期':'')+'）' : ''}</div>`).join('') : '<div class="note-text">尚无记录；旧版未保存的失败记录无法还原。</div>') + '</details>';
+    (history.length ? [...history].reverse().map(h => `<div class="note-text">${esc(h.date)} · ${h.round ? '第'+h.round+'轮 · ' : ''}${({correct:'独立做对',incorrect:'做错，继续复习',calculation:'思路正确，但计算出错（次日补做）',restart:'重新加入复习',edit:'修改题目',master:'手动标记熟悉'})[h.result] || '更新'}${h.calculationRetry && h.result==='correct' ? '（计算补做通过）' : ''}${h.legacy ? '（旧记录'+(h.estimatedDate?'，日期为原计划日期':'')+'）' : ''}</div>`).join('') : '<div class="note-text">尚无记录；旧版未保存的失败记录无法还原。</div>') + '</details>';
 }
 function selectItems(items, problemOf, dateOf) {
   const q = state.query.trim().toLowerCase();
@@ -347,11 +347,11 @@ function selectItems(items, problemOf, dateOf) {
     return (state.sortOrder === 'desc' ? -cmp : cmp) || problemOf(a).id.localeCompare(problemOf(b).id);
   });
 }
-function updateQuery(input) {
-  const pos=input.selectionStart;
-  state.query=input.value; render();
-  const next=document.getElementById('search');
-  next.focus(); next.setSelectionRange(pos,pos);
+function updateQuery(input, event) {
+  state.query=input.value;
+  // Keep the live input connected, especially while a mobile IME is composing.
+  if (event?.isComposing || input.dataset.composing === 'true') return;
+  render(true);
 }
 function getTomorrow() {
   const day=addDays(todayStr(),1);
@@ -425,24 +425,29 @@ function submitForm() {
   flash('已保存 ✓');
 }
 
-function completeReview(pid, rid, correct) {
+function completeReview(pid, rid, result) {
+  if (![true, false, 'calculation'].includes(result)) return;
+  const correct = result === true;
+  const calculation = result === 'calculation';
+  let changed = false;
   const data = state.problems.map(p => {
     if (p.id !== pid) return p;
     const rIdx = p.reviews.findIndex(r => r.id === rid);
     if (rIdx < 0 || p.mastered || p.reviews[rIdx].done || !isDue(p.reviews[rIdx].scheduledDate) || p.reviews.slice(0,rIdx).some(r=>!r.done)) return p;
 
+    changed = true;
     const newReviews = p.reviews.map(r => ({...r}));
     const today = todayStr();
 
     if (correct) {
       newReviews[rIdx] = {
-        ...newReviews[rIdx], done:true, correct:true, completedDate:today
+        ...newReviews[rIdx], done:true, correct:true, completedDate:today, calculationRetry:false
       };
     } else {
-      // Failed: retry this round in 3 days.
+      // A calculation slip retries tomorrow without passing or restarting the round.
       newReviews[rIdx] = {
-        ...newReviews[rIdx], scheduledDate:addDays(today, 3),
-        done:false, correct:false
+        ...newReviews[rIdx], scheduledDate:addDays(today, calculation ? 1 : 3),
+        done:false, correct:false, calculationRetry:calculation
       };
     }
 
@@ -458,13 +463,15 @@ function completeReview(pid, rid, correct) {
     }
 
     const history=[...(p.history||[]), {id:uid(),date:today,round:newReviews[rIdx].round,
-      result:correct?'correct':'incorrect',errorType:p.errorType,scheduledDate:p.reviews[rIdx].scheduledDate}];
+      result:calculation?'calculation':correct?'correct':'incorrect',
+      calculationRetry:!!p.reviews[rIdx].calculationRetry,
+      errorType:p.errorType,scheduledDate:p.reviews[rIdx].scheduledDate}];
     const mastered=correct && (p.errorType==='calc' || newReviews.every(r=>r.done && r.correct));
     return { ...p, reviews: newReviews, history, mastered, masteredDate:mastered?today:null };
   });
-  if (!commitData(data)) return;
+  if (!changed || !commitData(data)) return;
   setState({ problems:data });
-  flash(correct ? (data.find(p=>p.id===pid)?.mastered ? '✓ 复习完成，已移至已熟悉' : '✓ 做对了，继续保持！') : '本轮3天后再试，之前记录保留');
+  flash(calculation ? '已安排明天补做，做对后通过本轮，原错因和历史保留' : correct ? (data.find(p=>p.id===pid)?.mastered ? '✓ 复习完成，已移至已熟悉' : '✓ 做对了，继续保持！') : '本轮3天后再试，之前记录保留');
 }
 
 function toggleMastered(id) {
@@ -582,7 +589,7 @@ function getMastered() {
 }
 
 /* ═══════ RENDER ═══════ */
-function render() {
+function render(resultsOnly = false) {
   const allDue=getDue(), tomorrow=getTomorrow();
   const due=selectItems(allDue,x=>x.problem,x=>x.review.scheduledDate), upcoming=getUpcoming();
   const active=selectItems(getActive(),p=>p,p=>p.dateAdded);
@@ -619,11 +626,12 @@ function render() {
 
   html += '<div class="content">';
   html += `<button class="btn btn-action" onclick="undoLast()">↶ 撤销上一次操作</button>`;
-  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索题号、科目、备注" value="${esc(state.query)}" oninput="updateQuery(this)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围为当前列表</div>`;
+  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索题号、科目、备注" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="this.dataset.composing='false';updateQuery(this,event)" oninput="updateQuery(this,event)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围为当前列表</div>`;
+  html += '<div id="list-results">';
   if(state.tab==='tomorrow') {
     const items=selectItems(tomorrow,x=>x.problem,x=>x.review.scheduledDate);
     html+=`<div class="section-label">明天新到期 · ${friendlyDate(addDays(todayStr(),1))}</div><div class="note-text">未完成的今日及逾期题还会保留在待复习中；完成或做错后，明日安排可能变化。</div>`;
-    html+=items.map(({problem:p,review:r})=>`<div class="card"><div class="problem-text">${esc(p.subject)} · ${esc(p.problemId)}</div><div class="note-text">${esc(r.scheduledDate)} · 第${r.round}轮${p.errorType==='calc'?' · 本次独立做对即可完成':''}</div>${historyHTML(p)}</div>`).join('') || '<div class="empty">明天没有匹配的新到期题</div>';
+    html+=items.map(({problem:p,review:r})=>`<div class="card"><div class="problem-text">${esc(p.subject)} · ${esc(p.problemId)}</div><div class="note-text">${esc(r.scheduledDate)} · 第${r.round}轮${r.calculationRetry?' · 计算补做':''}${p.errorType==='calc'?' · 本次独立做对即可完成':''}</div>${historyHTML(p)}</div>`).join('') || '<div class="empty">明天没有匹配的新到期题</div>';
   }
 
 
@@ -649,13 +657,15 @@ function render() {
           ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
           <div class="card-bottom">
             <span class="review-badge ${overdue>0?'badge-urgent':'badge-normal'}">
-              ${p.errorType==='calc'?'计算错误 · 做对一次即可 · ':''}第${r.round}轮${overdue>0 ? ' · 逾期'+overdue+'天' : ' · 今天到期'}
+              ${p.errorType==='calc'?'计算错误 · 做对一次即可 · ':''}第${r.round}轮${r.calculationRetry?' · 计算补做':''}${overdue>0 ? ' · 逾期'+overdue+'天' : ' · 今天到期'}
             </span>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn btn-fail" onclick="completeReview('${p.id}','${r.id}',false)">✗ 做错了</button>
+              <button class="btn btn-action" onclick="completeReview('${p.id}','${r.id}','calculation')">🔢 思路正确，但计算出错</button>
               <button class="btn btn-done" onclick="completeReview('${p.id}','${r.id}',true)">✓ 做对了</button>
             </div>
           </div>
+          <div class="note-text">思路与列式正确、仅计算失误：明天补做，做对后通过本轮。</div>
           ${historyHTML(p)}
         </div>`;
       });
@@ -668,7 +678,7 @@ function render() {
           <div class="card-top">
             <span class="tag" style="color:${s.color};background:${s.bg}">${esc(p.subject)}</span>
             <span class="problem-text" style="font-size:13px">${esc(p.problemId)}</span>
-            <span class="date-text">${diff}天后 · 第${r.round}轮</span>
+            <span class="date-text">${diff}天后 · 第${r.round}轮${r.calculationRetry?' · 计算补做':''}</span>
           </div>
         </div>`;
       });
@@ -700,7 +710,7 @@ function render() {
               txt = friendlyDate(r.completedDate || r.scheduledDate) + ' ✓';
             } else if (!r.done && isDue(r.scheduledDate) && p.reviews.slice(0,i).every(pr=>pr.done)) {
               cls = 'dot-due';
-              txt = '待复习';
+              txt = r.calculationRetry ? '待计算补做' : '待复习';
             } else if (!r.done && !p.reviews.slice(0,i).every(pr=>pr.done)) {
               cls = 'dot-blocked';
               txt = friendlyDate(r.scheduledDate);
@@ -762,12 +772,12 @@ function render() {
         复习间隔：一般题3 / 7 / 15天；计算错误只需一次独立做对<br>
         轮次间隔：3天 · 7天 · 15天<br>
         逾期做对：从实际完成日计算后续轮次<br>
-        做错处理：当前轮 +3天，保留历史；计算题做错也要继续补测<br>计算错误旧题：不追溯自动完成，从下次独立做对开始生效<br>修改错因标签不会清空已有复习记录
+        做错处理：当前轮 +3天；思路正确但计算出错：当前轮 +1天补做，通过后继续原轮次，保留原错因和历史<br>计算错误旧题：不追溯自动完成，从下次独立做对开始生效<br>修改错因标签不会清空已有复习记录
       </div>
     </div>`;
   }
 
-  html += '</div>';
+  html += '</div></div>';
 
   // FAB
   html += `<button class="fab" onclick="openAdd()">+</button>`;
@@ -812,6 +822,21 @@ function render() {
     </div>`;
   }
 
+  // Only replace results while typing. Never detach/refocus the search input:
+  // doing so cancels iOS keyboard composition and can trigger focus rerenders.
+  const search = document.getElementById('search');
+  if ((resultsOnly || document.activeElement === search) && search && !state.showForm && app.dataset.tab === state.tab && state.tab !== 'data') {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    document.getElementById('list-results').innerHTML = template.content.querySelector('#list-results').innerHTML;
+    app.querySelector('.tab-bar').innerHTML = template.content.querySelector('.tab-bar').innerHTML;
+    app.querySelector('.header').innerHTML = template.content.querySelector('.header').innerHTML;
+    app.querySelector('.toast')?.remove();
+    const toast = template.content.querySelector('.toast');
+    if (toast) app.prepend(toast);
+    return;
+  }
+  app.dataset.tab = state.tab;
   app.innerHTML = html;
 
   if (state.showForm) {
