@@ -184,6 +184,10 @@ body {
 }
 .data-btn:active { background: #F5F3F0; }
 .data-btn.danger { border-color: var(--pri-light); color: var(--pri); }
+.stage-bar { display:flex; gap:6px; margin:16px 16px 0; padding:4px; background:#EAEDE8; border-radius:14px; }
+.stage-btn { flex:1; padding:11px 4px; border:0; border-radius:11px; background:transparent; color:var(--text2); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+.stage-btn.active { background:var(--card); color:var(--pri-dark); box-shadow:var(--shadow); }
+.stage-hint { margin:8px 20px 0; color:var(--text2); font-size:11px; line-height:1.7; }
 </style>
 </head>
 <body>
@@ -192,7 +196,7 @@ body {
 
 <script>
 /* ═══════════════════════════════════════════════
-   考研错题复习 v4 - History, Undo and Review Planning
+   考研错题复习 v5 - Separate Foundation and Intensive Collections
    轮次间隔：3天 → 7天 → 15天（累计：+3, +10, +25）
    修复：按实际完成日顺延 · 安全迁移 · JSON 文件备份
    ═══════════════════════════════════════════════ */
@@ -202,6 +206,24 @@ const OLD_STORAGE_KEY = 'kaoyan_review_v3';
 const INTERVALS = [3, 10, 25];       // 累计天数（距录入日）
 const INTER_GAPS = [3, 7, 15];       // 轮次间隔
 const INTERVAL_LABELS = ['3天后', '10天后', '25天后'];
+
+const STAGES = [
+  { id:'foundation', name:'基础阶段' },
+  { id:'intensive', name:'强化阶段' },
+];
+const stageOf = p => STAGES.some(s => s.id === p.stage) ? p.stage : 'foundation';
+const stageName = id => STAGES.find(s => s.id === id)?.name || '全部阶段';
+function scopedProblems() {
+  return state.problems.filter(p => state.stage === 'all' || stageOf(p) === state.stage);
+}
+function switchStage(stage) {
+  if (stage !== 'all' && !STAGES.some(s => s.id === stage)) return;
+  setState({stage, expandedId:null, query:''});
+}
+function stageBadge(p) {
+  return state.stage === 'all'
+    ? `<div class="note-text">📚 ${stageName(stageOf(p))}</div>` : '';
+}
 
 const SUBJECTS = [
   { name:'高数', color:'#D4836A', bg:'#FBF0EB' },
@@ -292,7 +314,7 @@ function loadData() {
       return migrated;
     }
     if (EMBEDDED_DATA && EMBEDDED_DATA.length > 0) {
-      const migrated = migrateProblems(EMBEDDED_DATA);
+      const migrated = upgradeProblems(migrateProblems(EMBEDDED_DATA));
       saveData(migrated);
       return migrated;
     }
@@ -301,12 +323,12 @@ function loadData() {
 }
 
 function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ _v: 3, problems: data }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ _v: 4, problems: data }));
 }
 
 const UNDO_KEY = STORAGE_KEY + '_undo';
 function upgradeProblems(list) {
-  return list.map(p => ({...p, history: Array.isArray(p.history) ? p.history :
+  return list.map(p => ({...p, stage:stageOf(p), history: Array.isArray(p.history) ? p.history :
     (p.reviews || []).filter(r => r.done).map(r => ({
       id:uid(), date:r.completedDate || r.scheduledDate, round:r.round,
       result:r.correct ? 'correct' : 'incorrect', legacy:true,
@@ -324,8 +346,9 @@ function undoLast() {
   try {
     const raw = localStorage.getItem(UNDO_KEY);
     if (!raw) return flash('没有可撤销的操作');
-    const data = JSON.parse(raw).problems;
-    if (!Array.isArray(data)) throw Error('invalid undo');
+    const list = JSON.parse(raw).problems;
+    if (!Array.isArray(list)) throw Error('invalid undo');
+    const data = upgradeProblems(list);
     saveData(data);
     localStorage.removeItem(UNDO_KEY);
     setState({problems:data, expandedId:null});
@@ -355,7 +378,7 @@ function updateQuery(input, event) {
 }
 function getTomorrow() {
   const day=addDays(todayStr(),1);
-  return state.problems.filter(p=>!p.mastered).flatMap(p=>{
+  return scopedProblems().filter(p=>!p.mastered).flatMap(p=>{
     const r=p.reviews.find(r=>!r.done);
     return r && r.scheduledDate===day ? [{problem:p,review:r}] : [];
   });
@@ -364,6 +387,7 @@ function getTomorrow() {
 /* ── App State ── */
 let state = {
   problems: loadData(),
+  stage: 'intensive', fStage: 'intensive',
   query: '', sortOrder: 'asc',
   tab: 'today',
   showForm: false,
@@ -390,15 +414,16 @@ function flash(msg) {
 
 /* ── Actions ── */
 function openAdd() {
-  setState({ showForm:true, editId:null, fSubject:'高数', fProblem:'', fNotes:'', fErrorType:'', fDate:todayStr() });
+  setState({ showForm:true, editId:null, fStage:state.stage === 'all' ? 'intensive' : state.stage, fSubject:'高数', fProblem:'', fNotes:'', fErrorType:'', fDate:todayStr() });
 }
 
 function openEdit(p) {
-  setState({ showForm:true, editId:p.id, fSubject:p.subject, fProblem:p.problemId, fNotes:p.notes||'', fErrorType:p.errorType||'', fDate:p.dateAdded });
+  setState({ showForm:true, editId:p.id, fStage:stageOf(p), fSubject:p.subject, fProblem:p.problemId, fNotes:p.notes||'', fErrorType:p.errorType||'', fDate:p.dateAdded });
 }
 
 function submitForm() {
   if (!state.fProblem.trim()) return;
+  if (!STAGES.some(s => s.id === state.fStage)) return flash('请选择所属阶段');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(state.fDate)) return flash('请选择有效日期');
   const data = [...state.problems];
   if (state.editId) {
@@ -406,7 +431,7 @@ function submitForm() {
     if (idx>=0) {
       const old = data[idx];
       const dateChanged = old.dateAdded !== state.fDate;
-      data[idx] = { ...old, subject:state.fSubject, problemId:state.fProblem.trim(),
+      data[idx] = { ...old, stage:state.fStage, subject:state.fSubject, problemId:state.fProblem.trim(),
         notes:state.fNotes.trim(), errorType:state.fErrorType, dateAdded:state.fDate,
         reviews: dateChanged ? buildReviews(state.fDate) : old.reviews,
         history:[...(old.history||[]), {id:uid(),date:todayStr(),result:'edit'}] };
@@ -414,14 +439,14 @@ function submitForm() {
 
   } else {
     data.unshift({
-      id:uid(), subject:state.fSubject, problemId:state.fProblem.trim(),
+      id:uid(), stage:state.fStage, subject:state.fSubject, problemId:state.fProblem.trim(),
       notes:state.fNotes.trim(), errorType:state.fErrorType, dateAdded:state.fDate,
       history:[], reviews:buildReviews(state.fDate), mastered:false, createdAt:new Date().toISOString(),
     });
 
   }
   if (!commitData(data)) return;
-  setState({ problems:data, showForm:false });
+  setState({ problems:data, showForm:false, stage:state.stage === 'all' ? 'all' : state.fStage });
   flash('已保存 ✓');
 }
 
@@ -498,7 +523,7 @@ function deleteProblem(id) {
 /* ── Export / Import ── */
 function exportData() {
   const payload = {
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     problems: state.problems,
   };
@@ -526,7 +551,7 @@ async function importDataFile(event) {
       throw new Error('invalid backup');
     }
     const data = upgradeProblems(parsed && parsed.version >= 3 ? list : migrateProblems(list));
-    if (!confirm(`将用文件中的 ${data.length} 条记录替换当前 ${state.problems.length} 条记录，确定吗？`)) return;
+    if (!confirm(`将用文件中的 ${data.length} 条记录替换基础和强化两个阶段的全部 ${state.problems.length} 条记录。无阶段信息的旧题归入基础阶段。确定吗？`)) return;
     if (!commitData(data)) return;
     setState({ problems:data });
     flash(`导入成功，共 ${data.length} 条记录 ✓`);
@@ -539,7 +564,7 @@ async function importDataFile(event) {
 }
 
 function clearAllData() {
-  if (!confirm('确定清空所有数据？此操作不可恢复！')) return;
+  if (!confirm('确定清空基础和强化两个阶段的所有题目及复习记录？请先下载备份。')) return;
   if (!commitData([])) return;
   setState({ problems:[] });
   flash('已清空所有数据');
@@ -548,7 +573,7 @@ function clearAllData() {
 /* ── Derived (with sequential enforcement) ── */
 function getDue() {
   const res = [];
-  state.problems.forEach(p => {
+  scopedProblems().forEach(p => {
     if (p.mastered) return;
     p.reviews.forEach((r, i) => {
       if (r.done) return;
@@ -565,7 +590,7 @@ function getDue() {
 
 function getUpcoming() {
   const res = [];
-  state.problems.forEach(p => {
+  scopedProblems().forEach(p => {
     if (p.mastered) return;
     p.reviews.forEach((r, i) => {
       if (r.done) return;
@@ -582,10 +607,10 @@ function getUpcoming() {
 }
 
 function getActive() {
-  return state.problems.filter(p=>!p.mastered).sort((a,b)=>b.dateAdded.localeCompare(a.dateAdded));
+  return scopedProblems().filter(p=>!p.mastered).sort((a,b)=>b.dateAdded.localeCompare(a.dateAdded));
 }
 function getMastered() {
-  return state.problems.filter(p=>p.mastered).sort((a,b)=>(b.masteredDate||b.dateAdded).localeCompare(a.masteredDate||a.dateAdded));
+  return scopedProblems().filter(p=>p.mastered).sort((a,b)=>(b.masteredDate||b.dateAdded).localeCompare(a.masteredDate||a.dateAdded));
 }
 
 /* ═══════ RENDER ═══════ */
@@ -612,11 +637,16 @@ function render(resultsOnly = false) {
     </div>
   </div>`;
 
+  html += `<div class="stage-bar" role="group" aria-label="错题集阶段">${[...STAGES,{id:'all',name:'全部阶段'}].map(s =>
+    `<button class="stage-btn${state.stage===s.id?' active':''}" aria-pressed="${state.stage===s.id}" onclick="switchStage('${s.id}')">${s.name}</button>`
+  ).join('')}</div>
+  <div class="stage-hint">${state.stage==='all'?'查看两个阶段的题目与复习安排':stageName(state.stage)+' · 仅统计和安排本阶段的题目'}<br>原有错题已归入基础阶段，复习进度保留。</div>`;
+
   // Tabs
   const tabs = [
     { id:'today', label:`待复习${due.length?` (${due.length})`:'' }` },
     { id:'tomorrow', label:`明天 (${tomorrow.length})` },
-    { id:'all', label:'全部' },
+    { id:'all', label:'题目' },
     { id:'mastered', label:'已熟悉' },
     { id:'data', label:'⚙' },
   ];
@@ -626,12 +656,12 @@ function render(resultsOnly = false) {
 
   html += '<div class="content">';
   html += `<button class="btn btn-action" onclick="undoLast()">↶ 撤销上一次操作</button>`;
-  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索题号、科目、备注" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="this.dataset.composing='false';updateQuery(this,event)" oninput="updateQuery(this,event)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围为当前列表</div>`;
+  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索题号、科目、备注" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="this.dataset.composing='false';updateQuery(this,event)" oninput="updateQuery(this,event)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围：${stageName(state.stage)}的当前列表</div>`;
   html += '<div id="list-results">';
   if(state.tab==='tomorrow') {
     const items=selectItems(tomorrow,x=>x.problem,x=>x.review.scheduledDate);
     html+=`<div class="section-label">明天新到期 · ${friendlyDate(addDays(todayStr(),1))}</div><div class="note-text">未完成的今日及逾期题还会保留在待复习中；完成或做错后，明日安排可能变化。</div>`;
-    html+=items.map(({problem:p,review:r})=>`<div class="card"><div class="problem-text">${esc(p.subject)} · ${esc(p.problemId)}</div><div class="note-text">${esc(r.scheduledDate)} · 第${r.round}轮${r.calculationRetry?' · 计算补做':''}${p.errorType==='calc'?' · 本次独立做对即可完成':''}</div>${historyHTML(p)}</div>`).join('') || '<div class="empty">明天没有匹配的新到期题</div>';
+    html+=items.map(({problem:p,review:r})=>`<div class="card"><div class="problem-text">${esc(p.subject)} · ${esc(p.problemId)}</div>${stageBadge(p)}<div class="note-text">${esc(r.scheduledDate)} · 第${r.round}轮${r.calculationRetry?' · 计算补做':''}${p.errorType==='calc'?' · 本次独立做对即可完成':''}</div>${historyHTML(p)}</div>`).join('') || '<div class="empty">明天没有匹配的新到期题</div>';
   }
 
 
@@ -653,6 +683,7 @@ function render(resultsOnly = false) {
             <span class="tag" style="color:${s.color};background:${s.bg}">${esc(p.subject)}</span>
             <span class="problem-text">${esc(p.problemId)}</span>
           </div>
+          ${stageBadge(p)}
           ${et ? `<span class="error-type" style="background:${s.bg};color:${s.color}">${et.emoji} ${et.label}</span>` : ''}
           ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
           <div class="card-bottom">
@@ -675,6 +706,7 @@ function render(resultsOnly = false) {
       upcoming.forEach(({ problem:p, review:r, diff }) => {
         const s = getSub(p.subject);
         html += `<div class="card" style="opacity:0.65">
+          ${stageBadge(p)}
           <div class="card-top">
             <span class="tag" style="color:${s.color};background:${s.bg}">${esc(p.subject)}</span>
             <span class="problem-text" style="font-size:13px">${esc(p.problemId)}</span>
@@ -701,6 +733,7 @@ function render(resultsOnly = false) {
             <span class="problem-text">${esc(p.problemId)}</span>
             <span class="date-text">${friendlyDate(p.dateAdded)}</span>
           </div>
+          ${stageBadge(p)}
           ${et ? `<span class="error-type" style="background:${s.bg};color:${s.color}">${et.emoji} ${et.label}</span>` : ''}
           ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
           <div class="review-row">${p.reviews.map((r,i) => {
@@ -739,6 +772,7 @@ function render(resultsOnly = false) {
       mastered.forEach(p => {
         const s = getSub(p.subject);
         html += `<div class="card" style="opacity:0.85">
+          ${stageBadge(p)}
           <div class="card-top">
             <span class="tag" style="color:${s.color};background:${s.bg}">${esc(p.subject)}</span>
             <span class="problem-text">${esc(p.problemId)}</span>
@@ -747,6 +781,7 @@ function render(resultsOnly = false) {
           ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
           ${historyHTML(p)}
           <div class="action-row" style="margin-top:8px">
+            <button class="btn btn-action" onclick="openEdit(state.problems.find(x=>x.id==='${p.id}'))">✏️ 编辑</button>
             <button class="btn btn-danger" onclick="toggleMastered('${p.id}')">↩ 移回复习</button>
           </div>
         </div>`;
@@ -759,16 +794,15 @@ function render(resultsOnly = false) {
     html += `<div class="data-panel">
       <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)">📦 数据管理</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
-        数据存储在浏览器本地。<strong>建议定期下载 JSON 文件备份</strong>，防止数据丢失。新旧版备份文件都可以直接导入。
+        数据存储在浏览器本地。<strong>建议定期下载 JSON 文件备份</strong>，防止数据丢失。备份包含基础和强化两个阶段。导入会替换两个阶段的全部记录；无阶段信息的旧备份自动归入基础阶段。
       </div>
-      <button class="data-btn" onclick="exportData()">⬇️ 下载 JSON 备份文件</button>
+      <button class="data-btn" onclick="exportData()">⬇️ 下载全部阶段 JSON 备份</button>
       <input id="data-file" type="file" accept=".json,application/json" hidden onchange="importDataFile(event)">
-      <button class="data-btn" onclick="document.getElementById('data-file').click()">⬆️ 从文件导入 JSON 备份</button>
+      <button class="data-btn" onclick="document.getElementById('data-file').click()">⬆️ 从文件恢复全部阶段</button>
       <div style="height:16px"></div>
-      <button class="data-btn danger" onclick="clearAllData()">🗑 清空所有数据</button>
+      <button class="data-btn danger" onclick="clearAllData()">🗑 清空全部阶段数据</button>
       <div style="margin-top:20px;font-size:11px;color:var(--text3);line-height:1.6">
-        当前记录数：${state.problems.length}<br>
-        存储 Key：${STORAGE_KEY}<br>
+        基础阶段：${state.problems.filter(p=>stageOf(p)==='foundation').length} 题 · 强化阶段：${state.problems.filter(p=>stageOf(p)==='intensive').length} 题<br>
         复习间隔：一般题3 / 7 / 15天；计算错误只需一次独立做对<br>
         轮次间隔：3天 · 7天 · 15天<br>
         逾期做对：从实际完成日计算后续轮次<br>
@@ -790,6 +824,13 @@ function render(resultsOnly = false) {
         <div class="modal-head">
           <span class="modal-title">${isEdit?'编辑题目':'录入错题'}</span>
           <button class="modal-close" onclick="setState({showForm:false})">✕</button>
+        </div>
+        <div class="form-group">
+          <div class="form-label">所属阶段</div>
+          <div class="subject-picker">${STAGES.map(s =>
+            `<button class="subject-btn${state.fStage===s.id?' active':''}" style="${state.fStage===s.id?'color:var(--pri);background:var(--pri-light)':''}" onclick="setState({fStage:'${s.id}'})">${s.name}</button>`
+          ).join('')}</div>
+          <div class="preview-text">修改阶段会保留已有复习日期和历史。</div>
         </div>
         <div class="form-group">
           <div class="form-label">科目</div>
@@ -825,7 +866,7 @@ function render(resultsOnly = false) {
   // Only replace results while typing. Never detach/refocus the search input:
   // doing so cancels iOS keyboard composition and can trigger focus rerenders.
   const search = document.getElementById('search');
-  if ((resultsOnly || document.activeElement === search) && search && !state.showForm && app.dataset.tab === state.tab && state.tab !== 'data') {
+  if ((resultsOnly || document.activeElement === search) && search && !state.showForm && app.dataset.tab === state.tab && app.dataset.stage === state.stage && state.tab !== 'data') {
     const template = document.createElement('template');
     template.innerHTML = html;
     document.getElementById('list-results').innerHTML = template.content.querySelector('#list-results').innerHTML;
@@ -837,6 +878,7 @@ function render(resultsOnly = false) {
     return;
   }
   app.dataset.tab = state.tab;
+  app.dataset.stage = state.stage;
   app.innerHTML = html;
 
   if (state.showForm) {
