@@ -125,7 +125,7 @@ test('export/import round trip includes both stages and complete review history'
   b.run(`globalThis.backup=${JSON.stringify(backup)}`);
   await b.run("importDataFile({target:{files:[{text:async()=>backup}],value:'backup.json'}})");
   assert.deepEqual(b.json('state.problems'), a.json('state.problems'));
-  assert.equal(JSON.parse(backup).version, 5);
+  assert.equal(JSON.parse(backup).version, 6);
 });
 
 test('old backups and old undo snapshots map to foundation and retain schedules', async () => {
@@ -139,4 +139,60 @@ test('old backups and old undo snapshots map to foundation and retain schedules'
   a.storage.set(key+'_undo', JSON.stringify({problems:old}));
   a.run('undoLast()');
   assert.ok(a.json('state.problems').every(p=>p.stage==='foundation'));
+});
+
+
+
+test('type creation, multi-tagging, renaming and reload preserve review records', () => {
+  const { a } = seeded();
+  const before=a.json('state.problems');
+  a.run("openTypeEditor(); state.typeDraftName='单调有界准则'; saveType(); openTypeEditor(); state.typeDraftName='递推数列'; saveType()");
+  a.run("switchTab('types'); openType('unassigned'); state.batchMode=true; state.selectedIds=state.problems.map(p=>p.id); openBatch(); state.batchTypeIds=state.types.map(t=>t.id); applyBatch()");
+  const after=a.json('state.problems');
+  after.forEach((p,i)=>{const {typeIds,...rest}=p;assert.equal(typeIds.length,2);assert.deepEqual(rest,before[i]);});
+  a.run("openTypeEditor(state.types[0].id); state.typeDraftName='单调有界求极限'; saveType()");
+  assert.equal(a.json('typesOf(state.problems[0])[0].name'),'单调有界求极限');
+  const reloaded=app(Object.fromEntries(a.storage));
+  assert.deepEqual(reloaded.json('state.types'),a.json('state.types'));
+  assert.deepEqual(reloaded.json('state.problems'),a.json('state.problems'));
+  a.run('undoLast()');
+  assert.equal(a.json('state.types[0].name'),'单调有界准则');
+});
+
+test('types include both stages and mastery filters; batch undo preserves catalog', () => {
+  const { a }=seeded();
+  a.run("openTypeEditor();state.typeDraftName='单调有界准则';saveType();switchTab('types');openType('unassigned');state.selectedIds=state.problems.map(p=>p.id);openBatch();state.batchTypeIds=state.types.map(t=>t.id);applyBatch();openType(state.types[0].id)");
+  assert.equal(a.json('typeProblems().length'),6);
+  a.run("switchStage('intensive');state.typeStatus='mastered'");
+  assert.deepEqual(a.json('typeProblems().map(p=>p.id)'),['new-mastered']);
+  a.run("state.typeStatus='active'");assert.equal(a.json('typeProblems().length'),2);
+  a.run('undoLast()');
+  assert.equal(a.json('state.types.length'),1);
+  assert.ok(a.json('state.problems').every(p=>!p.typeIds));
+});
+
+test('new backups preserve empty types and associations; old imports clear catalog and undo restores it', async () => {
+  const {a}=seeded();
+  a.run("openTypeEditor();state.typeDraftName='空题型';saveType();openTypeEditor();state.typeDraftName='数列';saveType();openEdit(state.problems[0]);state.fTypeIds=[state.types[1].id];submitForm();exportData()");
+  const backup=await a.exported().text(), b=app();
+  b.run(`globalThis.backup=${JSON.stringify(backup)}`);
+  await b.run("importDataFile({target:{files:[{text:async()=>backup}],value:'backup'}})");
+  assert.deepEqual(b.json('state.types'),a.json('state.types'));
+  assert.deepEqual(b.json('state.problems'),a.json('state.problems'));
+  const old=JSON.parse(backup);delete old.types;old.version=5;old.problems.forEach(p=>delete p.typeIds);
+  b.run(`globalThis.backup=${JSON.stringify(JSON.stringify(old))}`);
+  await b.run("importDataFile({target:{files:[{text:async()=>backup}],value:'old'}})");
+  assert.equal(b.json('state.types.length'),0);
+  b.run('undoLast()');assert.deepEqual(b.json('state.types'),a.json('state.types'));
+  b.run('clearAllData()');assert.equal(b.json('state.types.length'),0);
+  b.run('undoLast()');assert.deepEqual(b.json('state.problems'),a.json('state.problems'));
+});
+
+test('batch does not silently omit a subject or replace existing tags; duplicate names rejected', () => {
+  const {a}=seeded();
+  a.run("openTypeEditor();state.typeDraftName='数列';saveType();openTypeEditor();state.typeDraftName=' 数列 ';saveType()");
+  assert.equal(a.json('state.types.length'),1);
+  a.run("state.showTypeEditor=false;state.problems[0].subject='线代';switchTab('types');openType('unassigned');state.selectedIds=state.problems.map(p=>p.id);openBatch();state.batchTypeIds=state.types.map(t=>t.id);applyBatch()");
+  assert.ok(a.json('state.problems').every(p=>!p.typeIds));
+  assert.match(a.json('state.toast'),/每个已选科目/);
 });

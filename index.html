@@ -188,6 +188,15 @@ body {
 .stage-btn { flex:1; padding:11px 4px; border:0; border-radius:11px; background:transparent; color:var(--text2); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; }
 .stage-btn.active { background:var(--card); color:var(--pri-dark); box-shadow:var(--shadow); }
 .stage-hint { margin:8px 20px 0; color:var(--text2); font-size:11px; line-height:1.7; }
+.type-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.type-chip { border:0; border-radius:8px; padding:5px 9px; background:var(--pri-light); color:var(--pri-dark); font:inherit; font-size:11px; overflow-wrap:anywhere; text-align:left; }
+.type-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0; }
+.type-toolbar select { flex:1; min-width:110px; font-size:13px; }
+.type-entry { width:100%; text-align:left; border:0; font:inherit; color:inherit; cursor:pointer; }
+.type-entry .problem-text { overflow-wrap:anywhere; }
+.type-select { display:flex; align-items:center; gap:8px; padding:8px 0; font-size:13px; color:var(--pri-dark); }
+.type-select input { width:19px; height:19px; accent-color:var(--pri); }
+.btn:disabled { opacity:.4; cursor:default; }
 </style>
 </head>
 <body>
@@ -196,7 +205,7 @@ body {
 
 <script>
 /* ═══════════════════════════════════════════════
-   考研错题复习 v5 - Separate Foundation and Intensive Collections
+   考研错题复习 v6 - Question Type Collections
    轮次间隔：3天 → 7天 → 15天（累计：+3, +10, +25）
    修复：按实际完成日顺延 · 安全迁移 · JSON 文件备份
    ═══════════════════════════════════════════════ */
@@ -218,7 +227,7 @@ function scopedProblems() {
 }
 function switchStage(stage) {
   if (stage !== 'all' && !STAGES.some(s => s.id === stage)) return;
-  setState({stage, expandedId:null, query:''});
+  setState({stage, expandedId:null, query:'', selectedIds:[]});
 }
 function stageBadge(p) {
   return state.stage === 'all'
@@ -322,8 +331,25 @@ function loadData() {
   } catch(e) { console.error(e); return []; }
 }
 
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ _v: 4, problems: data }));
+function loadTypes() {
+  try { return validTypes(JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').types || []); }
+  catch(e) { return []; }
+}
+function validTypes(types) {
+  if (!Array.isArray(types)) throw Error('invalid types');
+  const ids = new Set(), names = new Set();
+  return types.map(t => {
+    if (!t || typeof t.id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(t.id) ||
+        typeof t.name !== 'string' || !t.name.trim() || t.name.length > 80 ||
+        !SUBJECTS.some(s=>s.name===t.subject)) throw Error('invalid type');
+    const name=t.name.trim(), key=t.subject+'\n'+name;
+    if(ids.has(t.id) || names.has(key)) throw Error('duplicate type');
+    ids.add(t.id); names.add(key);
+    return {id:t.id, subject:t.subject, name};
+  });
+}
+function saveData(data, types = []) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ _v: 5, problems: data, types }));
 }
 
 const UNDO_KEY = STORAGE_KEY + '_undo';
@@ -335,10 +361,10 @@ function upgradeProblems(list) {
       estimatedDate:!r.completedDate
     }))}));
 }
-function commitData(data) {
+function commitData(data, types = state.types) {
   try {
-    localStorage.setItem(UNDO_KEY, JSON.stringify({problems:state.problems}));
-    saveData(data);
+    localStorage.setItem(UNDO_KEY, JSON.stringify({problems:state.problems, types:state.types}));
+    saveData(data, types);
   } catch(e) { flash('保存失败，请先导出备份并检查浏览器存储'); return false; }
   return true;
 }
@@ -346,12 +372,14 @@ function undoLast() {
   try {
     const raw = localStorage.getItem(UNDO_KEY);
     if (!raw) return flash('没有可撤销的操作');
-    const list = JSON.parse(raw).problems;
+    const snapshot = JSON.parse(raw);
+    const list = snapshot.problems;
+    const types = snapshot.types === undefined ? state.types : validTypes(snapshot.types);
     if (!Array.isArray(list)) throw Error('invalid undo');
     const data = upgradeProblems(list);
-    saveData(data);
+    saveData(data, types);
     localStorage.removeItem(UNDO_KEY);
-    setState({problems:data, expandedId:null});
+    setState({problems:data, types, expandedId:null, selectedIds:[], typeId:null});
     flash('已撤销上一次数据操作');
   } catch(e) { flash('撤销失败，原记录未被清空'); }
 }
@@ -364,7 +392,7 @@ function selectItems(items, problemOf, dateOf) {
   const q = state.query.trim().toLowerCase();
   return items.filter(x => {
     const p=problemOf(x);
-    return !q || [p.problemId,p.subject,p.notes,getErr(p.errorType)?.label].join(' ').toLowerCase().includes(q);
+    return !q || [p.problemId,p.subject,p.notes,getErr(p.errorType)?.label,...typesOf(p).map(t=>t.name)].join(' ').toLowerCase().includes(q);
   }).sort((a,b) => {
     const cmp = dateOf(a).localeCompare(dateOf(b));
     return (state.sortOrder === 'desc' ? -cmp : cmp) || problemOf(a).id.localeCompare(problemOf(b).id);
@@ -386,7 +414,11 @@ function getTomorrow() {
 
 /* ── App State ── */
 let state = {
-  problems: loadData(),
+  problems: loadData(), types: loadTypes(),
+  typeId:null, typeSubject:'all', typeStatus:'all',
+  batchMode:false, selectedIds:[], showBatch:false, batchTypeIds:[],
+  fTypeIds:[], showTypeEditor:false, typeEditId:null,
+  typeDraftName:'', typeDraftSubject:'高数', typeContext:'catalog',
   stage: 'intensive', fStage: 'intensive',
   query: '', sortOrder: 'asc',
   tab: 'today',
@@ -414,11 +446,12 @@ function flash(msg) {
 
 /* ── Actions ── */
 function openAdd() {
-  setState({ showForm:true, editId:null, fStage:state.stage === 'all' ? 'intensive' : state.stage, fSubject:'高数', fProblem:'', fNotes:'', fErrorType:'', fDate:todayStr() });
+  const type=state.tab==='types'?state.types.find(t=>t.id===state.typeId):null;
+  setState({ showForm:true, fTypeIds:type?[type.id]:[], editId:null, fStage:state.stage === 'all' ? 'intensive' : state.stage, fSubject:type?.subject||'高数', fProblem:'', fNotes:'', fErrorType:'', fDate:todayStr() });
 }
 
 function openEdit(p) {
-  setState({ showForm:true, editId:p.id, fStage:stageOf(p), fSubject:p.subject, fProblem:p.problemId, fNotes:p.notes||'', fErrorType:p.errorType||'', fDate:p.dateAdded });
+  setState({ showForm:true, fTypeIds:typesOf(p).map(t=>t.id), editId:p.id, fStage:stageOf(p), fSubject:p.subject, fProblem:p.problemId, fNotes:p.notes||'', fErrorType:p.errorType||'', fDate:p.dateAdded });
 }
 
 function submitForm() {
@@ -433,6 +466,7 @@ function submitForm() {
       const dateChanged = old.dateAdded !== state.fDate;
       data[idx] = { ...old, stage:state.fStage, subject:state.fSubject, problemId:state.fProblem.trim(),
         notes:state.fNotes.trim(), errorType:state.fErrorType, dateAdded:state.fDate,
+      typeIds:state.fTypeIds.filter(id=>state.types.some(t=>t.id===id && t.subject===state.fSubject)),
         reviews: dateChanged ? buildReviews(state.fDate) : old.reviews,
         history:[...(old.history||[]), {id:uid(),date:todayStr(),result:'edit'}] };
     }
@@ -441,6 +475,7 @@ function submitForm() {
     data.unshift({
       id:uid(), stage:state.fStage, subject:state.fSubject, problemId:state.fProblem.trim(),
       notes:state.fNotes.trim(), errorType:state.fErrorType, dateAdded:state.fDate,
+      typeIds:state.fTypeIds.filter(id=>state.types.some(t=>t.id===id && t.subject===state.fSubject)),
       history:[], reviews:buildReviews(state.fDate), mastered:false, createdAt:new Date().toISOString(),
     });
 
@@ -523,7 +558,8 @@ function deleteProblem(id) {
 /* ── Export / Import ── */
 function exportData() {
   const payload = {
-    version: 5,
+    version: 6,
+    types: state.types,
     exportedAt: new Date().toISOString(),
     problems: state.problems,
   };
@@ -550,10 +586,13 @@ async function importDataFile(event) {
     if (!Array.isArray(list) || !list.every(p => p && typeof p === 'object' && typeof p.dateAdded === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.dateAdded) && typeof p.id === 'string' && /^[a-zA-Z0-9_-]+$/.test(p.id) && typeof p.problemId === 'string' && typeof p.subject === 'string' && (!p.notes || typeof p.notes === 'string') && Array.isArray(p.reviews) && p.reviews.length===3 && p.reviews.every(r=>r && typeof r.id==='string' && /^[a-zA-Z0-9_-]+$/.test(r.id) && typeof r.scheduledDate==='string' && /^\d{4}-\d{2}-\d{2}$/.test(r.scheduledDate)))) {
       throw new Error('invalid backup');
     }
+    const types = validTypes(parsed.types || []);
+    if (!list.every(p => p.typeIds === undefined || (Array.isArray(p.typeIds) &&
+        p.typeIds.every(id => types.some(t=>t.id===id && t.subject===p.subject))))) throw Error('invalid type references');
     const data = upgradeProblems(parsed && parsed.version >= 3 ? list : migrateProblems(list));
-    if (!confirm(`将用文件中的 ${data.length} 条记录替换基础和强化两个阶段的全部 ${state.problems.length} 条记录。无阶段信息的旧题归入基础阶段。确定吗？`)) return;
-    if (!commitData(data)) return;
-    setState({ problems:data });
+    if (!confirm(`将用文件中的 ${data.length} 条记录替换基础和强化两个阶段的全部 ${state.problems.length} 条记录及全部题型。无阶段信息的旧题归入基础阶段。确定吗？`)) return;
+    if (!commitData(data, types)) return;
+    setState({ problems:data, types, typeId:null, selectedIds:[] });
     flash(`导入成功，共 ${data.length} 条记录 ✓`);
   } catch(e) {
     console.error(e);
@@ -564,9 +603,9 @@ async function importDataFile(event) {
 }
 
 function clearAllData() {
-  if (!confirm('确定清空基础和强化两个阶段的所有题目及复习记录？请先下载备份。')) return;
-  if (!commitData([])) return;
-  setState({ problems:[] });
+  if (!confirm('确定清空基础和强化两个阶段的所有题目、题型及复习记录？请先下载备份。')) return;
+  if (!commitData([], [])) return;
+  setState({ problems:[], types:[], typeId:null, selectedIds:[] });
   flash('已清空所有数据');
 }
 
@@ -613,6 +652,151 @@ function getMastered() {
   return scopedProblems().filter(p=>p.mastered).sort((a,b)=>(b.masteredDate||b.dateAdded).localeCompare(a.masteredDate||a.dateAdded));
 }
 
+/* ── Question type collections ── */
+function typesOf(p) {
+  return state.types.filter(t=>t.subject===p.subject && (p.typeIds || []).includes(t.id));
+}
+function switchTab(tab) {
+  setState({tab, expandedId:null, query:'', batchMode:false, selectedIds:[],
+    ...(tab==='types' ? {stage:'all',typeId:null,typeStatus:'all'} : {})});
+}
+function openType(id) {
+  setState({tab:'types',typeId:id,typeSubject:id==='unassigned'?state.typeSubject:'all',typeStatus:'all',query:'',expandedId:null,
+    batchMode:false,selectedIds:[]});
+}
+function typeBadges(p) {
+  return `<div class="type-chips">${typesOf(p).map(t=>`<button class="type-chip" onclick="event.stopPropagation();openType('${t.id}')">${esc(t.name)}</button>`).join('')}</div>`;
+}
+function changeFormSubject(subject) {
+  setState({fSubject:subject,fTypeIds:subject===state.fSubject ? state.fTypeIds : []});
+}
+function toggleType(id, context) {
+  const key=context==='form'?'fTypeIds':'batchTypeIds';
+  setState({[key]:state[key].includes(id)?state[key].filter(x=>x!==id):[...state[key],id]});
+}
+function typePickerHTML(context) {
+  const ids=context==='form'?state.fTypeIds:state.batchTypeIds;
+  const selectedProblems=state.problems.filter(p=>state.selectedIds.includes(p.id));
+  const subjects=context==='form'?[state.fSubject]:[...new Set(selectedProblems.map(p=>p.subject))];
+  const types=state.types.filter(t=>subjects.includes(t.subject));
+  return types.length ? `<div class="error-picker">${types.map(t=>`<button class="error-btn${ids.includes(t.id)?' active':''}" aria-pressed="${ids.includes(t.id)}" onclick="toggleType('${t.id}','${context}')">${subjects.length>1?esc(t.subject)+' · ':''}${esc(t.name)}</button>`).join('')}</div>` : '<div class="note-text">本科目还没有题型，点击下方新建。</div>';
+}
+function openTypeEditor(id=null, context='catalog') {
+  const t=state.types.find(t=>t.id===id);
+  const subjects=[...new Set(state.problems.filter(p=>state.selectedIds.includes(p.id)).map(p=>p.subject))];
+  setState({showTypeEditor:true,typeEditId:t?.id||null,typeContext:context,typeDraftName:t?.name||'',
+    typeDraftSubject:t?.subject || (context==='form'?state.fSubject:context==='batch'?subjects[0]:state.typeSubject!=='all'?state.typeSubject:'高数') || '高数'});
+}
+function saveType() {
+  const name=state.typeDraftName.trim(), subject=state.typeDraftSubject;
+  if (!name || name.length>80) return flash('请输入1至80字的题型名称');
+  if (!SUBJECTS.some(s=>s.name===subject)) return;
+  const existing=state.types.find(t=>t.subject===subject && t.name===name && t.id!==state.typeEditId);
+  if (existing) return flash('这个科目已有同名题型，请直接选择');
+  const id=state.typeEditId||uid();
+  const type={id,subject,name};
+  const types=state.typeEditId?state.types.map(t=>t.id===id?type:t):[...state.types,type];
+  if (!commitData(state.problems, types)) return;
+  const patch={types,showTypeEditor:false};
+  if (state.typeContext==='form' && !state.typeEditId) patch.fTypeIds=[...state.fTypeIds,id];
+  if (state.typeContext==='batch' && !state.typeEditId) patch.batchTypeIds=[...state.batchTypeIds,id];
+  setState(patch);
+  flash(state.typeEditId?'题型已重命名':'题型已创建');
+}
+function typeEditorHTML() {
+  const fixed=!!state.typeEditId || state.typeContext==='form';
+  return `<div class="overlay" style="z-index:120" onclick="setState({showTypeEditor:false})"><div class="modal" role="dialog" aria-modal="true" aria-label="题型设置" onclick="event.stopPropagation()">
+    <div class="modal-head"><span class="modal-title">${state.typeEditId?'重命名题型':'新建题型'}</span><button class="modal-close" aria-label="关闭题型设置" onclick="setState({showTypeEditor:false})">✕</button></div>
+    <div class="form-group"><label class="form-label" for="type-subject">科目</label><select id="type-subject" class="form-input" ${fixed?'disabled':''} onchange="state.typeDraftSubject=this.value">${SUBJECTS.map(s=>`<option ${s.name===state.typeDraftSubject?'selected':''}>${s.name}</option>`).join('')}</select></div>
+    <div class="form-group"><label class="form-label" for="type-name">题型名称</label><input id="type-name" class="form-input" maxlength="80" placeholder="例如：单调有界准则" value="${esc(state.typeDraftName)}" oninput="state.typeDraftName=this.value"><div class="preview-text">也可写成「数列极限 / 单调有界准则」，方便区分。</div></div>
+    <button class="submit-btn" onclick="saveType()">保存题型</button></div></div>`;
+}
+function typeProblems() {
+  return selectItems(scopedProblems().filter(p=>
+    (state.typeId==='unassigned'?typesOf(p).length===0:typesOf(p).some(t=>t.id===state.typeId)) &&
+    (state.typeSubject==='all'||p.subject===state.typeSubject) &&
+    (state.typeStatus==='all'||(state.typeStatus==='mastered'?p.mastered:!p.mastered))),p=>p,p=>p.dateAdded);
+}
+function visibleBatchProblems() {
+  if(state.tab==='types') return state.typeId ? typeProblems() : [];
+  return selectItems(state.tab==='mastered'?getMastered():getActive(),p=>p,p=>p.dateAdded);
+}
+function toggleSelected(id) {
+  setState({selectedIds:state.selectedIds.includes(id)?state.selectedIds.filter(x=>x!==id):[...state.selectedIds,id]});
+}
+function selectedVisibleIds() {
+  const visible=new Set(visibleBatchProblems().map(p=>p.id));
+  return state.selectedIds.filter(id=>visible.has(id));
+}
+function selectionHTML(p) {
+  return state.batchMode ? `<label class="type-select" onclick="event.stopPropagation()"><input type="checkbox" aria-label="选择 ${esc(p.problemId)}" ${state.selectedIds.includes(p.id)?'checked':''} onchange="toggleSelected('${p.id}')">选择此题</label>`:'';
+}
+function batchToolbarHTML() {
+  if(!state.batchMode) return `<div class="type-toolbar"><button class="btn btn-action" onclick="setState({batchMode:true,selectedIds:[]})">批量归类</button></div>`;
+  const count=selectedVisibleIds().length;
+  return `<div class="type-toolbar"><button class="btn btn-action" onclick="setState({selectedIds:visibleBatchProblems().map(p=>p.id)})">全选当前列表</button><button class="btn btn-action" onclick="setState({selectedIds:[]})">取消选择</button>
+    <button class="btn btn-done" ${count?'':'disabled'} onclick="openBatch()">归类已选 ${count} 题</button><button class="btn btn-action" onclick="setState({batchMode:false,selectedIds:[]})">退出</button></div>`;
+}
+function openBatch() {
+  const ids=selectedVisibleIds();
+  if(!ids.length) return flash('请先选择题目');
+  setState({selectedIds:ids,showBatch:true,batchTypeIds:[]});
+}
+function applyBatch() {
+  const chosen=state.types.filter(t=>state.batchTypeIds.includes(t.id));
+  if(!chosen.length) return flash('请至少选择一个题型');
+  const selected=state.problems.filter(p=>state.selectedIds.includes(p.id));
+  if(selected.some(p=>!chosen.some(t=>t.subject===p.subject))) return flash('请为每个已选科目至少选择一个题型');
+  let changed=0;
+  const data=state.problems.map(p=>{
+    if(!state.selectedIds.includes(p.id)) return p;
+    const ids=[...new Set([...(p.typeIds||[]),...chosen.filter(t=>t.subject===p.subject).map(t=>t.id)])];
+    if(ids.length===(p.typeIds||[]).length) return p;
+    changed++;
+    return {...p,typeIds:ids};
+  });
+  if(!changed) return flash('所选题目已归入这些题型');
+  if(!commitData(data)) return;
+  setState({problems:data,showBatch:false,batchMode:false,selectedIds:[]});
+  flash(`已归类 ${changed} 道题`);
+}
+function batchModalHTML() {
+  return `<div class="overlay" onclick="setState({showBatch:false})"><div class="modal" role="dialog" aria-modal="true" aria-label="批量归类" onclick="event.stopPropagation()">
+    <div class="modal-head"><span class="modal-title">为 ${state.selectedIds.length} 道题添加题型</span><button class="modal-close" aria-label="关闭批量归类" onclick="setState({showBatch:false})">✕</button></div>
+    <div class="note-text" style="margin-bottom:14px">可多选；保留已有题型。同科目的题目会添加对应题型。</div>
+    ${typePickerHTML('batch')}<button class="btn btn-action" style="margin:12px 0" onclick="openTypeEditor(null,'batch')">＋ 新建题型</button>
+    <button class="submit-btn" onclick="applyBatch()">确认归类</button></div></div>`;
+}
+function typesPageHTML() {
+  let html=`<div class="type-toolbar"><select class="form-input" aria-label="题型科目" onchange="setState({typeSubject:this.value,selectedIds:[]})"><option value="all">全部科目</option>${SUBJECTS.map(s=>`<option ${state.typeSubject===s.name?'selected':''}>${s.name}</option>`).join('')}</select><button class="btn btn-done" onclick="openTypeEditor()">＋ 新建题型</button></div>`;
+  if(state.typeId && state.typeId!=='unassigned' && !state.types.some(t=>t.id===state.typeId)) state.typeId=null;
+  if(state.typeId) {
+    const t=state.types.find(t=>t.id===state.typeId), items=typeProblems();
+    html+=`<div class="type-toolbar"><button class="btn btn-action" onclick="setState({typeId:null,query:'',batchMode:false,selectedIds:[]})">‹ 全部题型</button>${t?`<button class="btn btn-action" onclick="openTypeEditor('${t.id}')">重命名</button>`:''}</div>
+      <div class="problem-text">${t?esc(t.subject)+' · '+esc(t.name):'未归类'} <span class="date-text">${items.length} 题</span></div>
+      <div class="type-toolbar"><select class="form-input" aria-label="掌握状态" onchange="setState({typeStatus:this.value,selectedIds:[]})">${[['all','全部状态'],['active','未掌握'],['mastered','已熟悉']].map(([id,label])=>`<option value="${id}" ${state.typeStatus===id?'selected':''}>${label}</option>`).join('')}</select></div>${batchToolbarHTML()}`;
+    html+=items.map(p=>`<div class="card"><div class="card-top"><span class="tag" style="background:${getSub(p.subject).bg};color:${getSub(p.subject).color}">${esc(p.subject)}</span><span class="problem-text">${esc(p.problemId)}</span></div><div class="note-text">${stageName(stageOf(p))} · ${p.mastered?'已熟悉':'未掌握'} · ${friendlyDate(p.dateAdded)}录入</div>${typeBadges(p)}${p.notes?`<div class="note-text">💡 ${esc(p.notes)}</div>`:''}${selectionHTML(p)}<div class="action-row"><button class="btn btn-action" onclick="openEdit(state.problems.find(p=>p.id==='${p.id}'))">查看 / 编辑</button></div>${historyHTML(p)}</div>`).join('') || '<div class="empty"><div class="empty-title">暂无匹配的题目</div><div class="empty-sub">可在「题目」或「已熟悉」中批量归类，也可编辑单题选择题型。</div></div>';
+    return html;
+  }
+  const scope=scopedProblems().filter(p=>state.typeSubject==='all'||p.subject===state.typeSubject);
+  const q=state.query.trim().toLowerCase();
+  const types=state.types.filter(t=>(state.typeSubject==='all'||t.subject===state.typeSubject) &&
+    (!q || (t.subject+' '+t.name).toLowerCase().includes(q) || selectItems(scope.filter(p=>typesOf(p).some(x=>x.id===t.id)),p=>p,p=>p.dateAdded).length));
+  const unassigned=scope.filter(p=>!typesOf(p).length).length;
+  html+=`<button class="card type-entry" onclick="openType('unassigned')"><div class="card-top"><span class="problem-text">未归类</span><span class="tag">${unassigned} 题 ›</span></div><div class="note-text">把已有错题批量归到题型中</div></button>`;
+  for(const subject of SUBJECTS) {
+    const group=types.filter(t=>t.subject===subject.name);
+    if(!group.length) continue;
+    html+=`<div class="section-label">${subject.name}</div>`;
+    for(const t of group) {
+      const rows=scope.filter(p=>typesOf(p).some(x=>x.id===t.id));
+      html+=`<button class="card type-entry" onclick="openType('${t.id}')"><div class="card-top"><span class="problem-text">${esc(t.name)}</span><span class="tag">${rows.length} 题 ›</span></div><div class="note-text">未掌握 ${rows.filter(p=>!p.mastered).length} · 已熟悉 ${rows.filter(p=>p.mastered).length}</div></button>`;
+    }
+  }
+  if(!types.length) html+='<div class="empty"><div class="empty-title">还没有匹配的题型</div><div class="empty-sub">点击「新建题型」，例如「单调有界准则」。</div></div>';
+  return html;
+}
+
 /* ═══════ RENDER ═══════ */
 function render(resultsOnly = false) {
   const allDue=getDue(), tomorrow=getTomorrow();
@@ -647,21 +831,24 @@ function render(resultsOnly = false) {
     { id:'today', label:`待复习${due.length?` (${due.length})`:'' }` },
     { id:'tomorrow', label:`明天 (${tomorrow.length})` },
     { id:'all', label:'题目' },
+    { id:'types', label:'题型' },
     { id:'mastered', label:'已熟悉' },
     { id:'data', label:'⚙' },
   ];
   html += `<div class="tab-bar">${tabs.map(t =>
-    `<button class="tab-btn${state.tab===t.id?' active':''}" onclick="setState({tab:'${t.id}',expandedId:null})">${t.label}</button>`
+    `<button class="tab-btn${state.tab===t.id?' active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`
   ).join('')}</div>`;
 
   html += '<div class="content">';
   html += `<button class="btn btn-action" onclick="undoLast()">↶ 撤销上一次操作</button>`;
-  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索题号、科目、备注" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="this.dataset.composing='false';updateQuery(this,event)" oninput="updateQuery(this,event)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围：${stageName(state.stage)}的当前列表</div>`;
+  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索题号、备注、题型" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="this.dataset.composing='false';updateQuery(this,event)" oninput="updateQuery(this,event)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围：${stageName(state.stage)}的当前列表</div>`;
   html += '<div id="list-results">';
+  if (state.tab === 'types') html += typesPageHTML();
+  if (state.tab === 'all' || state.tab === 'mastered') html += batchToolbarHTML();
   if(state.tab==='tomorrow') {
     const items=selectItems(tomorrow,x=>x.problem,x=>x.review.scheduledDate);
     html+=`<div class="section-label">明天新到期 · ${friendlyDate(addDays(todayStr(),1))}</div><div class="note-text">未完成的今日及逾期题还会保留在待复习中；完成或做错后，明日安排可能变化。</div>`;
-    html+=items.map(({problem:p,review:r})=>`<div class="card"><div class="problem-text">${esc(p.subject)} · ${esc(p.problemId)}</div>${stageBadge(p)}<div class="note-text">${esc(r.scheduledDate)} · 第${r.round}轮${r.calculationRetry?' · 计算补做':''}${p.errorType==='calc'?' · 本次独立做对即可完成':''}</div>${historyHTML(p)}</div>`).join('') || '<div class="empty">明天没有匹配的新到期题</div>';
+    html+=items.map(({problem:p,review:r})=>`<div class="card"><div class="problem-text">${esc(p.subject)} · ${esc(p.problemId)}</div>${stageBadge(p)}${typeBadges(p)}<div class="note-text">${esc(r.scheduledDate)} · 第${r.round}轮${r.calculationRetry?' · 计算补做':''}${p.errorType==='calc'?' · 本次独立做对即可完成':''}</div>${historyHTML(p)}</div>`).join('') || '<div class="empty">明天没有匹配的新到期题</div>';
   }
 
 
@@ -683,7 +870,7 @@ function render(resultsOnly = false) {
             <span class="tag" style="color:${s.color};background:${s.bg}">${esc(p.subject)}</span>
             <span class="problem-text">${esc(p.problemId)}</span>
           </div>
-          ${stageBadge(p)}
+          ${stageBadge(p)}${typeBadges(p)}
           ${et ? `<span class="error-type" style="background:${s.bg};color:${s.color}">${et.emoji} ${et.label}</span>` : ''}
           ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
           <div class="card-bottom">
@@ -706,7 +893,7 @@ function render(resultsOnly = false) {
       upcoming.forEach(({ problem:p, review:r, diff }) => {
         const s = getSub(p.subject);
         html += `<div class="card" style="opacity:0.65">
-          ${stageBadge(p)}
+          ${stageBadge(p)}${typeBadges(p)}
           <div class="card-top">
             <span class="tag" style="color:${s.color};background:${s.bg}">${esc(p.subject)}</span>
             <span class="problem-text" style="font-size:13px">${esc(p.problemId)}</span>
@@ -733,7 +920,7 @@ function render(resultsOnly = false) {
             <span class="problem-text">${esc(p.problemId)}</span>
             <span class="date-text">${friendlyDate(p.dateAdded)}</span>
           </div>
-          ${stageBadge(p)}
+          ${stageBadge(p)}${typeBadges(p)}
           ${et ? `<span class="error-type" style="background:${s.bg};color:${s.color}">${et.emoji} ${et.label}</span>` : ''}
           ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
           <div class="review-row">${p.reviews.map((r,i) => {
@@ -753,6 +940,7 @@ function render(resultsOnly = false) {
             }
             return `<span class="review-dot"><span class="dot ${cls}"></span>第${i+1}轮 ${txt}</span>`;
           }).join('')}</div>
+          ${selectionHTML(p)}
           ${expanded ? historyHTML(p) : ''}
           ${expanded ? `<div class="expanded"><div class="action-row">
             <button class="btn btn-action" onclick="event.stopPropagation();openEdit(state.problems.find(x=>x.id==='${p.id}'))">✏️ 编辑</button>
@@ -772,14 +960,14 @@ function render(resultsOnly = false) {
       mastered.forEach(p => {
         const s = getSub(p.subject);
         html += `<div class="card" style="opacity:0.85">
-          ${stageBadge(p)}
+          ${stageBadge(p)}${typeBadges(p)}
           <div class="card-top">
             <span class="tag" style="color:${s.color};background:${s.bg}">${esc(p.subject)}</span>
             <span class="problem-text">${esc(p.problemId)}</span>
             <span class="date-text">${friendlyDate(p.dateAdded)}</span>
           </div>
           ${p.notes ? `<div class="note-text">💡 ${esc(p.notes)}</div>` : ''}
-          ${historyHTML(p)}
+          ${historyHTML(p)}${selectionHTML(p)}
           <div class="action-row" style="margin-top:8px">
             <button class="btn btn-action" onclick="openEdit(state.problems.find(x=>x.id==='${p.id}'))">✏️ 编辑</button>
             <button class="btn btn-danger" onclick="toggleMastered('${p.id}')">↩ 移回复习</button>
@@ -794,7 +982,7 @@ function render(resultsOnly = false) {
     html += `<div class="data-panel">
       <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)">📦 数据管理</div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
-        数据存储在浏览器本地。<strong>建议定期下载 JSON 文件备份</strong>，防止数据丢失。备份包含基础和强化两个阶段。导入会替换两个阶段的全部记录；无阶段信息的旧备份自动归入基础阶段。
+        数据存储在浏览器本地。<strong>建议定期下载 JSON 文件备份</strong>，防止数据丢失。备份包含基础和强化两个阶段、所有题型及归类。导入会替换两个阶段的全部记录及题型；无阶段信息的旧备份自动归入基础阶段。
       </div>
       <button class="data-btn" onclick="exportData()">⬇️ 下载全部阶段 JSON 备份</button>
       <input id="data-file" type="file" accept=".json,application/json" hidden onchange="importDataFile(event)">
@@ -835,12 +1023,17 @@ function render(resultsOnly = false) {
         <div class="form-group">
           <div class="form-label">科目</div>
           <div class="subject-picker">${SUBJECTS.map(s =>
-            `<button class="subject-btn${state.fSubject===s.name?' active':''}" style="${state.fSubject===s.name?`color:${s.color};background:${s.bg};border-color:${s.color}`:''}" onclick="setState({fSubject:'${s.name}'})">${s.name}</button>`
+            `<button class="subject-btn${state.fSubject===s.name?' active':''}" style="${state.fSubject===s.name?`color:${s.color};background:${s.bg};border-color:${s.color}`:''}" onclick="changeFormSubject('${s.name}')">${s.name}</button>`
           ).join('')}</div>
         </div>
         <div class="form-group">
           <div class="form-label">题目描述</div>
           <input class="form-input" id="f-problem" placeholder="例：张宇30讲 第5讲 例题3" value="${esc(state.fProblem)}" oninput="state.fProblem=this.value">
+        </div>
+        <div class="form-group">
+          <div class="form-label">题型（可多选）</div>
+          ${typePickerHTML('form')}
+          <button class="btn btn-action" style="margin-top:8px" onclick="openTypeEditor(null,'form')">＋ 新建题型</button>
         </div>
         <div class="form-group">
           <div class="form-label">错因分类（选填）</div>
@@ -863,10 +1056,13 @@ function render(resultsOnly = false) {
     </div>`;
   }
 
+  if (state.showBatch) html += batchModalHTML();
+  if (state.showTypeEditor) html += typeEditorHTML();
+
   // Only replace results while typing. Never detach/refocus the search input:
   // doing so cancels iOS keyboard composition and can trigger focus rerenders.
   const search = document.getElementById('search');
-  if ((resultsOnly || document.activeElement === search) && search && !state.showForm && app.dataset.tab === state.tab && app.dataset.stage === state.stage && state.tab !== 'data') {
+  if ((resultsOnly || document.activeElement === search) && search && !state.showForm && !state.showBatch && !state.showTypeEditor && app.dataset.tab === state.tab && app.dataset.stage === state.stage && state.tab !== 'data') {
     const template = document.createElement('template');
     template.innerHTML = html;
     document.getElementById('list-results').innerHTML = template.content.querySelector('#list-results').innerHTML;
@@ -881,7 +1077,7 @@ function render(resultsOnly = false) {
   app.dataset.stage = state.stage;
   app.innerHTML = html;
 
-  if (state.showForm) {
+  if (state.showForm && !state.showTypeEditor) {
     const inp = document.getElementById('f-problem');
     if (inp && !state.editId) setTimeout(() => inp.focus(), 100);
   }
@@ -892,10 +1088,9 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !state.showForm) render(); });
-window.addEventListener('focus', () => { if (!state.showForm) render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !state.showForm && !state.showBatch && !state.showTypeEditor) render(); });
+window.addEventListener('focus', () => { if (!state.showForm && !state.showBatch && !state.showTypeEditor) render(); });
 render();
 </script>
 </body>
 </html>
-
