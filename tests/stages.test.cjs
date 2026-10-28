@@ -238,3 +238,14 @@ test('Chinese composition refreshes results on completion, and clearing restores
   a.run("input.value='';updateQuery(input,{isComposing:false})");
   assert.match(a.root.innerHTML,/6 题 ›/);
 });
+
+test('explicit search recovers a stuck composition flag and uses the current input value', () => {
+  const {a}=seeded();
+  a.run("state.problems[0].subject='线代';switchTab('types');globalThis.input={value:'线代',dataset:{composing:'true'}};commitQuery(input)");
+  assert.equal(a.json('input.dataset.composing'),'false');
+  assert.match(a.root.innerHTML,/匹配 0 个题型 · 1 道题/);
+  a.run("input.value='';commitQuery(input)");
+  assert.match(a.root.innerHTML,/6 题 ›/);
+  assert.match(a.root.innerHTML,/onsubmit="event.preventDefault\(\);commitQuery/);
+  assert.match(a.root.innerHTML,/oncompositionend="commitQuery\(this\)"/);
+});

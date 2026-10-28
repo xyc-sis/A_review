@@ -404,6 +404,11 @@ function updateQuery(input, event) {
   if (event?.isComposing || input.dataset.composing === 'true') return;
   render(true);
 }
+function commitQuery(input) {
+  if (!input) return;
+  input.dataset.composing = 'false';
+  updateQuery(input);
+}
 function getTomorrow() {
   const day=addDays(todayStr(),1);
   return scopedProblems().filter(p=>!p.mastered).flatMap(p=>{
@@ -815,7 +820,7 @@ function render(resultsOnly = false) {
   // Header
   html += `<div class="header">
     <h1>📖 考研错题复习</h1>
-    <div class="sub">轮次间隔 · 3 / 7 / 15天；计算错误做对一次即可</div>
+    <div class="sub">轮次间隔 · 3 / 7 / 15天；计算错误做对一次即可 · v6.2</div>
     <div class="stats">
       <div class="stat-box"><div class="stat-num">${allDue.length}</div><div class="stat-label">待复习</div></div>
       <div class="stat-box"><div class="stat-num">${getActive().length}</div><div class="stat-label">跟踪中</div></div>
@@ -843,7 +848,7 @@ function render(resultsOnly = false) {
 
   html += '<div class="content">';
   html += `<button class="btn btn-action" onclick="undoLast()">↶ 撤销上一次操作</button>`;
-  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索科目、题号、备注、题型" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="this.dataset.composing='false';updateQuery(this,event)" oninput="updateQuery(this,event)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围：${stageName(state.stage)}的当前列表</div>`;
+  if(state.tab!=='data') html += `<form role="search" style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap" onsubmit="event.preventDefault();commitQuery(document.getElementById('search'))"><input id="search" type="search" enterkeyhint="search" class="form-input" style="min-width:0;flex:1" placeholder="搜索科目、题号、备注、题型" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="commitQuery(this)" onchange="commitQuery(this)" oninput="updateQuery(this,event)"><button type="submit" class="btn btn-done">搜索</button><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></form><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围：${stageName(state.stage)}的当前列表</div>`;
   html += '<div id="list-results">';
   if (state.tab === 'types') html += typesPageHTML();
   if (state.tab === 'all' || state.tab === 'mastered') html += batchToolbarHTML();
