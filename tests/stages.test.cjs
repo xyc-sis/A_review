@@ -196,3 +196,45 @@ test('batch does not silently omit a subject or replace existing tags; duplicate
   assert.ok(a.json('state.problems').every(p=>!p.typeIds));
   assert.match(a.json('state.toast'),/每个已选科目/);
 });
+
+test('type catalog searches unassigned subjects, keeps query on entry and shows empty results', () => {
+  const {a}=seeded();
+  a.run("state.problems[0].subject='线代';switchTab('types');state.query=' 线代 ';render()");
+  assert.match(a.root.innerHTML,/匹配 0 个题型 · 1 道题（未归类 1 道）/);
+  assert.match(a.root.innerHTML,/openType\('unassigned',true\)/);
+  a.run("openType('unassigned',true)");
+  assert.equal(a.json('state.query'),' 线代 ');
+  assert.deepEqual(a.json('typeProblems().map(p=>p.id)'),['old-due']);
+  a.run("switchTab('types');state.query='不存在的关键词';render()");
+  assert.doesNotMatch(a.root.innerHTML,/class="card type-entry"/);
+  assert.match(a.root.innerHTML,/没有匹配的题型或题目/);
+  a.run("state.query='';render()");
+  assert.match(a.root.innerHTML,/6 题 ›/);
+});
+
+test('type catalog counts match detail results and respect stage and subject filters', () => {
+  const {a}=seeded();
+  a.run("state.types=[{id:'limits',subject:'高数',name:'极限'}];state.problems.forEach(p=>p.typeIds=['limits']);switchTab('types');state.query='old-due';render()");
+  assert.match(a.root.innerHTML,/匹配 1 个题型 · 1 道题/);
+  assert.match(a.root.innerHTML,/1 题 ›/);
+  a.run("openType('limits',true)");
+  assert.deepEqual(a.json('typeProblems().map(p=>p.id)'),['old-due']);
+  a.run("switchTab('types');state.stage='intensive';state.query='old-due';render()");
+  assert.doesNotMatch(a.root.innerHTML,/class="card type-entry"/);
+  a.run("state.query='极限';render()");
+  assert.match(a.root.innerHTML,/3 题 ›/);
+  a.run("state.typeSubject='线代';render()");
+  assert.doesNotMatch(a.root.innerHTML,/class="card type-entry"/);
+});
+
+test('Chinese composition refreshes results on completion, and clearing restores the list', () => {
+  const {a}=seeded();
+  a.run("state.problems[0].subject='线代';switchTab('types');globalThis.input={value:'线代',dataset:{composing:'true'}}");
+  const before=a.root.innerHTML;
+  a.run("updateQuery(input,{isComposing:true})");
+  assert.equal(a.root.innerHTML,before);
+  a.run("input.dataset.composing='false';updateQuery(input,{isComposing:false})");
+  assert.match(a.root.innerHTML,/匹配 0 个题型 · 1 道题/);
+  a.run("input.value='';updateQuery(input,{isComposing:false})");
+  assert.match(a.root.innerHTML,/6 题 ›/);
+});

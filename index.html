@@ -660,8 +660,8 @@ function switchTab(tab) {
   setState({tab, expandedId:null, query:'', batchMode:false, selectedIds:[],
     ...(tab==='types' ? {stage:'all',typeId:null,typeStatus:'all'} : {})});
 }
-function openType(id) {
-  setState({tab:'types',typeId:id,typeSubject:id==='unassigned'?state.typeSubject:'all',typeStatus:'all',query:'',expandedId:null,
+function openType(id, keepQuery = false) {
+  setState({tab:'types',typeId:id,typeSubject:id==='unassigned'?state.typeSubject:'all',typeStatus:'all',query:keepQuery?state.query:'',expandedId:null,
     batchMode:false,selectedIds:[]});
 }
 function typeBadges(p) {
@@ -782,18 +782,20 @@ function typesPageHTML() {
   const q=state.query.trim().toLowerCase();
   const types=state.types.filter(t=>(state.typeSubject==='all'||t.subject===state.typeSubject) &&
     (!q || (t.subject+' '+t.name).toLowerCase().includes(q) || selectItems(scope.filter(p=>typesOf(p).some(x=>x.id===t.id)),p=>p,p=>p.dateAdded).length));
-  const unassigned=scope.filter(p=>!typesOf(p).length).length;
-  html+=`<button class="card type-entry" onclick="openType('unassigned')"><div class="card-top"><span class="problem-text">未归类</span><span class="tag">${unassigned} 题 ›</span></div><div class="note-text">把已有错题批量归到题型中</div></button>`;
+  const matching=selectItems(scope,p=>p,p=>p.dateAdded);
+  const unassigned=matching.filter(p=>!typesOf(p).length).length;
+  if(q) html+=`<div class="note-text" role="status">搜索「${esc(state.query.trim())}」：匹配 ${types.length} 个题型 · ${matching.length} 道题（未归类 ${unassigned} 道）</div>`;
+  if(!q || unassigned) html+=`<button class="card type-entry" onclick="openType('unassigned',true)"><div class="card-top"><span class="problem-text">未归类</span><span class="tag">${unassigned} 题 ›</span></div><div class="note-text">${q?'查看匹配的未归类错题':'把已有错题批量归到题型中'}</div></button>`;
   for(const subject of SUBJECTS) {
     const group=types.filter(t=>t.subject===subject.name);
     if(!group.length) continue;
     html+=`<div class="section-label">${subject.name}</div>`;
     for(const t of group) {
-      const rows=scope.filter(p=>typesOf(p).some(x=>x.id===t.id));
-      html+=`<button class="card type-entry" onclick="openType('${t.id}')"><div class="card-top"><span class="problem-text">${esc(t.name)}</span><span class="tag">${rows.length} 题 ›</span></div><div class="note-text">未掌握 ${rows.filter(p=>!p.mastered).length} · 已熟悉 ${rows.filter(p=>p.mastered).length}</div></button>`;
+      const rows=matching.filter(p=>typesOf(p).some(x=>x.id===t.id));
+      html+=`<button class="card type-entry" onclick="openType('${t.id}',true)"><div class="card-top"><span class="problem-text">${esc(t.name)}</span><span class="tag">${rows.length} 题 ›</span></div><div class="note-text">未掌握 ${rows.filter(p=>!p.mastered).length} · 已熟悉 ${rows.filter(p=>p.mastered).length}</div></button>`;
     }
   }
-  if(!types.length) html+='<div class="empty"><div class="empty-title">还没有匹配的题型</div><div class="empty-sub">点击「新建题型」，例如「单调有界准则」。</div></div>';
+  if(!types.length && (!q || !unassigned)) html+=`<div class="empty"><div class="empty-title">${q?'没有匹配的题型或题目':'还没有匹配的题型'}</div><div class="empty-sub">${q?'试试其他关键词，或检查科目和阶段筛选。':'点击「新建题型」，例如「单调有界准则」。'}</div></div>`;
   return html;
 }
 
@@ -841,7 +843,7 @@ function render(resultsOnly = false) {
 
   html += '<div class="content">';
   html += `<button class="btn btn-action" onclick="undoLast()">↶ 撤销上一次操作</button>`;
-  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索题号、备注、题型" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="this.dataset.composing='false';updateQuery(this,event)" oninput="updateQuery(this,event)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围：${stageName(state.stage)}的当前列表</div>`;
+  if(state.tab!=='data') html += `<div style="display:flex;gap:8px;margin:12px 0"><input id="search" class="form-input" style="min-width:0" placeholder="搜索科目、题号、备注、题型" value="${esc(state.query)}" aria-label="搜索题目" oncompositionstart="this.dataset.composing='true'" oncompositionend="this.dataset.composing='false';updateQuery(this,event)" oninput="updateQuery(this,event)"><select aria-label="日期排序" class="form-input" style="width:130px;font-size:12px" onchange="setState({sortOrder:this.value})"><option value="asc" ${state.sortOrder==='asc'?'selected':''}>日期从早到晚</option><option value="desc" ${state.sortOrder==='desc'?'selected':''}>日期从晚到早</option></select></div><div class="note-text">${state.tab==='today'||state.tab==='tomorrow'?'按复习日期排序':state.tab==='mastered'?'按熟悉日期排序':'按录入日期排序'} · 搜索范围：${stageName(state.stage)}的当前列表</div>`;
   html += '<div id="list-results">';
   if (state.tab === 'types') html += typesPageHTML();
   if (state.tab === 'all' || state.tab === 'mastered') html += batchToolbarHTML();
